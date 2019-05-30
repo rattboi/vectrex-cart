@@ -35,7 +35,7 @@ LIBS:pic16f18323
 LIBS:oscillator
 LIBS:vectrex-edge-connector
 LIBS:sst39sf040-tsop
-LIBS:bloxorz-cache
+LIBS:veccart-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
