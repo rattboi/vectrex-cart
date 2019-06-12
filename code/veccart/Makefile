@@ -30,7 +30,13 @@ LDFLAGS		+= --static -nostartfiles -L$(TOOLCHAIN_DIR)/lib  \
 .SECONDEXPANSION:
 .SECONDARY:
 
-all: images
+all: docker
+
+docker-build: Dockerfile
+	docker build . -t stm32-build
+
+docker:
+	docker run --rm -t -v `pwd`:/build/veccart -u `id -u ${USER}`:`id -g ${USER}` stm32-build make images
 
 images: $(BINARY).images
 flash: $(BINARY).flash
