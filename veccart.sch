@@ -122,13 +122,13 @@ F 3 "http://www.ti.com/lit/ds/symlink/sn74lvc8t245.pdf" H 7150 2450 50  0001 C C
 $EndComp
 $Comp
 L 74xx:74LS32 U3
-U 1 1 5CFED423
+U 3 1 5CFED423
 P 6650 3400
 F 0 "U3" H 6650 3725 50  0000 C CNN
 F 1 "74LS32" H 6650 3634 50  0000 C CNN
 F 2 "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm" H 6650 3400 50  0001 C CNN
 F 3 "http://www.ti.com/lit/gpn/sn74LS32" H 6650 3400 50  0001 C CNN
-	1    6650 3400
+	3    6650 3400
 	-1   0    0    1   
 $EndComp
 $Comp
@@ -996,4 +996,40 @@ F 3 "" H 5800 3550 50  0001 C CNN
 	1    5800 3550
 	1    0    0    -1  
 $EndComp
+Text GLabel 2900 3200 2    50   Input ~ 0
+C_A0
+Text GLabel 2900 3300 2    50   Input ~ 0
+C_A1
+Text GLabel 2900 3400 2    50   Input ~ 0
+C_A2
+Text GLabel 2900 3500 2    50   Input ~ 0
+C_A3
+Text GLabel 2900 3600 2    50   Input ~ 0
+C_A4
+Text GLabel 2900 3700 2    50   Input ~ 0
+C_A5
+Text GLabel 2900 3800 2    50   Input ~ 0
+C_A6
+Text GLabel 2900 3900 2    50   Input ~ 0
+C_A7
+Text GLabel 2900 4000 2    50   Input ~ 0
+C_A8
+Text GLabel 2900 4100 2    50   Input ~ 0
+C_A9
+Text GLabel 2900 4200 2    50   Input ~ 0
+C_A10
+Text GLabel 2900 4300 2    50   Input ~ 0
+C_A11
+Text GLabel 2900 4400 2    50   Input ~ 0
+C_A12
+Text GLabel 2900 4500 2    50   Input ~ 0
+C_A13
+Text GLabel 2900 4600 2    50   Input ~ 0
+C_A14
+Text GLabel 2400 1600 2    50   Input ~ 0
+C_VCC
+Text GLabel 5500 3900 2    50   Input ~ 0
+TXD
+Text GLabel 5500 4000 2    50   Input ~ 0
+RXD
 $EndSCHEMATC
