@@ -30,19 +30,13 @@ LDFLAGS		+= --static -nostartfiles -L$(TOOLCHAIN_DIR)/lib  \
 .SECONDEXPANSION:
 .SECONDARY:
 
-all: flash
+all: images
 
 images: $(BINARY).images
 flash: $(BINARY).flash
 
 rom.o: rom.inc rom.c rom.h
 	$(CC) $(CFLAGS) -o $@ -c rom.c
-
-#rom.inc: ../hello/test.bin
-#	bin2c < ../hello/test.bin > rom.inc
-
-../hello/test.bin: dummy
-	make -C ../hello test.bin
 
 %.images: %.bin %.hex %.srec %.list
 	@#echo "*** $* images generated ***"
@@ -82,4 +76,3 @@ clean:
 	dfu-util -a 0 -d 0483:df11 -s 0x08000000:leave -D $(*).bin
 
 .PHONY: images clean flash dummy
-
