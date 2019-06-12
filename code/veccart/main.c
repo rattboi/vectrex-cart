@@ -30,8 +30,6 @@
 #include "xprintf.h"
 #include "fatfs/ff.h"
 
-#include "voom-vectrex.h"
-
 //Memory for the menu ROM and the running cartridge.
 //We keep both in memory so we can quickly exchange them when a reset has been detected.
 char menuData[8*1024];
@@ -180,7 +178,6 @@ void doHandleEvent(int data) {
 	xprintf("Event: %d. arg1: 0x%x\n", data, (int)parmRam[254]);
 	if (data==1) doChangeRom((int)parmRam[254]);
 	if (data==2) loadStreamData(0x4000, 1024+512);
-	if (data==66) voomVectrexFrame((int)parmRam[254], &romData[0x800], &cartData[0x2000]);
 	xprintf("Event handled. Resuming.\n");
 }
 

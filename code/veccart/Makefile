@@ -12,7 +12,7 @@ OBJCOPY		= $(PREFIX)-objcopy
 OBJDUMP		= $(PREFIX)-objdump
 # Uncomment this line if you want to use the installed (not local) library.
 #TOOLCHAIN_DIR = `dirname \`which $(CC)\``/../$(PREFIX)
-TOOLCHAIN_DIR=`pwd`/../../libopencm3/
+TOOLCHAIN_DIR=../libopencm3
 CFLAGS		+= -O3 -g -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls \
 		-Wmissing-prototypes -Wstrict-prototypes -fno-common -ffunction-sections -fdata-sections \
 		-MD -Wall -Wundef -I$(TOOLCHAIN_DIR)/include $(ARCH_FLAGS)
@@ -73,6 +73,7 @@ clean:
 	rm -f *.hex
 	rm -f *.srec
 	rm -f *.list
+	find . -name '*.d' -delete
 
 #%.flash: %.hex
 #	stm32flash -w "$(*).hex" -b 460800 -i -rts,dtr,-dtr -v -g 0x0 /dev/ttyUSB0
