@@ -112,7 +112,7 @@ void flashInit(void) {
 }
 
 
-int flashDoWriteback() {
+void flashDoWriteback() {
 	int x, i, status;
 	if (flashBlkAddr==-1) return;
 	xprintf("Doing writeback on blk addr %x\n", flashBlkAddr);
