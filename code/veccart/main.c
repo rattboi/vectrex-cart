@@ -26,6 +26,9 @@
 #include <libopencm3/stm32/flash.h>
 #include <stdlib.h>
 
+#include "main.h"
+#include "msc.h"
+
 //#include "rom.h"
 #include "xprintf.h"
 #include "fatfs/ff.h"
@@ -59,7 +62,7 @@ void uart_output_func(unsigned char c){
 }
 
 //Asm function
-extern void romemu();
+extern void romemu(void);
 
 //Load a ROM into cartridge memory
 void loadRom(char *fn) {
@@ -83,7 +86,7 @@ void loadRom(char *fn) {
 
 //Get a listing of the roms in the 'roms/' directory and
 //poke them into the menu cartridge space
-void loadListing() {
+void loadListing(void) {
 	int strpos=0x800; //enough for 512 name ptrs
 	int ptrpos=0x400;
 	int i;

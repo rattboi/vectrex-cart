@@ -30,6 +30,8 @@
 #include "flash.h"
 #include "xprintf.h"
 
+#include "msc.h"
+
 static const struct usb_device_descriptor dev_descr = {
 	.bLength = USB_DT_DEVICE_SIZE,
 	.bDescriptorType = USB_DT_DEVICE,
@@ -115,7 +117,6 @@ void sys_tick_handler(void) {
 
 
 int ramdiskmain(void) {
-	int mf, id;
 //	rcc_clock_setup_hse_3v3(&hse_8mhz_3v3[CLOCK_3V3_120MHZ]);
 
 	rcc_periph_clock_enable(RCC_GPIOA);
