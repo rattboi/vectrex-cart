@@ -137,7 +137,7 @@ U 1 1 5D00550C
 P 4600 6200
 F 0 "Y1" H 4600 6468 50  0000 C CNN
 F 1 "8MHz" H 4600 6377 50  0000 C CNN
-F 2 "Oscillator:Oscillator_SMD_EuroQuartz_XO32-4Pin_3.2x2.5mm_HandSoldering" H 4600 6200 50  0001 C CNN
+F 2 "Crystal:Crystal_SMD_5032-2Pin_5.0x3.2mm_HandSoldering" H 4600 6200 50  0001 C CNN
 F 3 "~" H 4600 6200 50  0001 C CNN
 	1    4600 6200
 	0    1    1    0   
