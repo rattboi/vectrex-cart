@@ -186,22 +186,6 @@ Wire Wire Line
 Text GLabel 4100 4700 0    60   Input ~ 0
 V-PB6
 Wire Wire Line
-	5500 1600 6350 1600
-Wire Wire Line
-	6350 1700 5500 1700
-Wire Wire Line
-	5500 1800 6350 1800
-Wire Wire Line
-	6350 1900 5500 1900
-Wire Wire Line
-	5500 2000 6350 2000
-Wire Wire Line
-	6350 2100 5500 2100
-Wire Wire Line
-	5500 2200 6350 2200
-Wire Wire Line
-	6350 2300 5500 2300
-Wire Wire Line
 	1650 2850 1500 2850
 $Comp
 L Device:C C1
@@ -410,21 +394,21 @@ Text GLabel 2900 2850 2    50   Input ~ 0
 C_D1
 Text GLabel 2900 2950 2    50   Input ~ 0
 C_D0
-Text GLabel 7750 2300 2    50   Input ~ 0
-C_D7
-Text GLabel 7750 2200 2    50   Input ~ 0
-C_D6
-Text GLabel 7750 2100 2    50   Input ~ 0
-C_D5
-Text GLabel 7750 2000 2    50   Input ~ 0
-C_D4
-Text GLabel 7750 1900 2    50   Input ~ 0
-C_D3
-Text GLabel 7750 1800 2    50   Input ~ 0
-C_D2
-Text GLabel 7750 1700 2    50   Input ~ 0
-C_D1
 Text GLabel 7750 1600 2    50   Input ~ 0
+C_D7
+Text GLabel 7750 1700 2    50   Input ~ 0
+C_D6
+Text GLabel 7750 1800 2    50   Input ~ 0
+C_D5
+Text GLabel 7750 1900 2    50   Input ~ 0
+C_D4
+Text GLabel 7750 2000 2    50   Input ~ 0
+C_D3
+Text GLabel 7750 2100 2    50   Input ~ 0
+C_D2
+Text GLabel 7750 2200 2    50   Input ~ 0
+C_D1
+Text GLabel 7750 2300 2    50   Input ~ 0
 C_D0
 Text GLabel 6350 2500 0    60   Input ~ 0
 V-RW
@@ -1032,4 +1016,36 @@ Text GLabel 5500 3900 2    50   Input ~ 0
 TXD
 Text GLabel 5500 4000 2    50   Input ~ 0
 RXD
+Text GLabel 6350 1800 0    50   Input ~ 0
+P_D5
+Text GLabel 5500 2100 2    50   Input ~ 0
+P_D5
+Text GLabel 6350 2100 0    50   Input ~ 0
+P_D2
+Text GLabel 5500 1800 2    50   Input ~ 0
+P_D2
+Text GLabel 5500 2000 2    50   Input ~ 0
+P_D4
+Text GLabel 6350 1900 0    50   Input ~ 0
+P_D4
+Text GLabel 5500 1600 2    50   Input ~ 0
+P_D0
+Text GLabel 6350 2300 0    50   Input ~ 0
+P_D0
+Text GLabel 5500 1700 2    50   Input ~ 0
+P_D1
+Text GLabel 6350 2200 0    50   Input ~ 0
+P_D1
+Text GLabel 5500 1900 2    50   Input ~ 0
+P_D3
+Text GLabel 6350 2000 0    50   Input ~ 0
+P_D3
+Text GLabel 5500 2200 2    50   Input ~ 0
+P_D6
+Text GLabel 6350 1700 0    50   Input ~ 0
+P_D6
+Text GLabel 5500 2300 2    50   Input ~ 0
+P_D7
+Text GLabel 6350 1600 0    50   Input ~ 0
+P_D7
 $EndSCHEMATC
