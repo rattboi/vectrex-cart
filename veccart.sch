@@ -1,4 +1,4 @@
-EESchema Schematic File Version 4
+EESchema Schematic File Version 5
 LIBS:veccart-cache
 EELAYER 29 0
 EELAYER END
@@ -1048,4 +1048,32 @@ Text GLabel 5500 2300 2    50   Input ~ 0
 P_D7
 Text GLabel 6350 1600 0    50   Input ~ 0
 P_D7
+$Comp
+L Connector:Conn_01x06_Male J2
+U 1 1 5D0ADA96
+P 7550 5500
+F 0 "J2" H 7522 5474 50  0000 R CNN
+F 1 "Conn_01x06_Male" H 7522 5383 50  0000 R CNN
+F 2 "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical" H 7550 5500 50  0001 C CNN
+F 3 "~" H 7550 5500 50  0001 C CNN
+	1    7550 5500
+	-1   0    0    -1  
+$EndComp
+Wire Wire Line
+	7350 5300 7200 5300
+$Comp
+L veccart-rescue:GND #PWR0130
+U 1 1 5D0AE42B
+P 7200 5300
+F 0 "#PWR0130" H 7200 5050 50  0001 C CNN
+F 1 "GND" H 7200 5150 50  0000 C CNN
+F 2 "" H 7200 5300 50  0001 C CNN
+F 3 "" H 7200 5300 50  0001 C CNN
+	1    7200 5300
+	1    0    0    -1  
+$EndComp
+Text GLabel 7350 5700 0    50   Input ~ 0
+TXD
+Text GLabel 7350 5600 0    50   Input ~ 0
+RXD
 $EndSCHEMATC
