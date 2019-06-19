@@ -105,7 +105,7 @@ P 6850 4300
 F 0 "U5" H 6850 4715 50  0000 C CNN
 F 1 "W25Q128" H 6850 4624 50  0000 C CNN
 F 2 "Package_SO:SOIC-8_5.23x5.23mm_P1.27mm" H 7150 4400 50  0001 C CNN
-F 3 "" H 7150 4400 50  0001 C CNN
+F 3 "https://www.pjrc.com/teensy/W25Q128FV.pdf" H 7150 4400 50  0001 C CNN
 	1    6850 4300
 	1    0    0    -1  
 $EndComp
@@ -125,9 +125,9 @@ L 74xx:74LS32 U3
 U 3 1 5CFED423
 P 6650 3400
 F 0 "U3" H 6650 3725 50  0000 C CNN
-F 1 "74LS32" H 6650 3634 50  0000 C CNN
+F 1 "74HC32" H 6650 3634 50  0000 C CNN
 F 2 "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm" H 6650 3400 50  0001 C CNN
-F 3 "http://www.ti.com/lit/gpn/sn74LS32" H 6650 3400 50  0001 C CNN
+F 3 "https://assets.nexperia.com/documents/data-sheet/74HC_HCT32.pdf" H 6650 3400 50  0001 C CNN
 	3    6650 3400
 	-1   0    0    1   
 $EndComp
@@ -924,9 +924,9 @@ L 74xx:74LS32 U3
 U 5 1 5D0EB89A
 P 6000 6200
 F 0 "U3" H 6000 6525 50  0000 C CNN
-F 1 "74LS32" H 6000 6434 50  0000 C CNN
+F 1 "74HC32" H 6000 6434 50  0000 C CNN
 F 2 "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm" H 6000 6200 50  0001 C CNN
-F 3 "http://www.ti.com/lit/gpn/sn74LS32" H 6000 6200 50  0001 C CNN
+F 3 "https://assets.nexperia.com/documents/data-sheet/74HC_HCT32.pdf" H 6000 6200 50  0001 C CNN
 	5    6000 6200
 	1    0    0    -1  
 $EndComp
