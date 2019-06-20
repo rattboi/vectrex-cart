@@ -1,7 +1,3 @@
-"Source:","/home/rattboi/code/veccart/veccart.sch"
-"Date:","Wed 19 Jun 2019 09:59:46 PM PDT"
-"Tool:","Eeschema (5.1.0-1062-ge16bf40e6)"
-"Component Count:","28"
 "Ref","Value","Footprint","Datasheet","Manufacturer","Vendor"
 "C1","2.2u","Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder","~","","https://www.digikey.com/product-detail/en/samsung-electro-mechanics/CL21A225KAFNNNG/1276-6458-1-ND/5958086"
 "C2","2.2u","Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder","~","","https://www.digikey.com/product-detail/en/samsung-electro-mechanics/CL21A225KAFNNNG/1276-6458-1-ND/5958086"
