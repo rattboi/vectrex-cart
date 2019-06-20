@@ -6,6 +6,13 @@ Flashable USB Vectrex Cart
 ![Front Render](renders/veccart-3d-front.png)
 ![Back Render](renders/veccart-3d-back.png)
 
+BOM
+===
+
+All the parts are described in veccart.csv
+
+Also, you can use this [digikey shared cart](https://www.digikey.com/short/phj9qt) if you're in a hurry.
+
 Info
 ====
 
