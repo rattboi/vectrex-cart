@@ -5,8 +5,8 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
-Title ""
-Date ""
+Title "Vectrex Cart"
+Date "2019-06-19"
 Rev ""
 Comp ""
 Comment1 ""
@@ -138,7 +138,7 @@ P 4600 6200
 F 0 "Y1" H 4600 6468 50  0000 C CNN
 F 1 "8MHz" H 4600 6377 50  0000 C CNN
 F 2 "Crystal:Crystal_SMD_5032-2Pin_5.0x3.2mm_HandSoldering" H 4600 6200 50  0001 C CNN
-F 3 "~" H 4600 6200 50  0001 C CNN
+F 3 "https://abracon.com/Resonators/abm3.pdf" H 4600 6200 50  0001 C CNN
 	1    4600 6200
 	0    1    1    0   
 $EndComp
@@ -148,7 +148,7 @@ U 1 1 5D00696D
 P 1300 6700
 F 0 "J1" H 1357 7167 50  0000 C CNN
 F 1 "USB_B_Mini" H 1357 7076 50  0000 C CNN
-F 2 "Connector_USB:USB_Mini-B_Lumberg_2486_01_Horizontal" H 1450 6650 50  0001 C CNN
+F 2 "veccart:USB_Mini_B_Female_UX60-MB-5ST" H 1450 6650 50  0001 C CNN
 F 3 "~" H 1450 6650 50  0001 C CNN
 	1    1300 6700
 	1    0    0    -1  
