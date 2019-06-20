@@ -13,6 +13,7 @@ This is an attempt to recreate the work of [SpritesMods](http://spritesmods.com/
 BOM
 ===
 
-All the parts are described in veccart.csv
+
+All the parts are described in ![veccart.csv](veccart.csv)
 
 Also, you can use this [digikey shared cart](https://www.digikey.com/short/phj9qt) if you're in a hurry.
