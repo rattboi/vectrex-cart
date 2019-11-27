@@ -25,6 +25,7 @@
 #include <libopencm3/stm32/pwr.h>
 #include <libopencm3/stm32/flash.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "main.h"
 #include "msc.h"
@@ -106,6 +107,16 @@ void loadListing(void) {
 		if (name==NULL || name[0]==0) name=fi.fname; //use short name if no long name available
 		romData[ptrpos++]=strpos>>8;
 		romData[ptrpos++]=strpos&0xff;
+		// null terminate away the .bin extension
+		char* ptr = strstr(name,".bin");
+		if (ptr) {
+			*ptr = 0;
+		} else {
+			ptr = strstr(name,".BIN");
+			if (ptr) {
+				*ptr = 0;
+			}
+		}
 		i=20;
 		while (*name!=0 && i>0) {
 			if (*name<32) {
@@ -179,10 +190,10 @@ void doChangeRom(int i) {
 
 //Handle an RPC event
 void doHandleEvent(int data) {
-	xprintf("Event: %d. arg1: 0x%x\n", data, (int)parmRam[254]);
+	// xprintf("Event: %d. arg1: 0x%x\n", data, (int)parmRam[254]);
 	if (data==1) doChangeRom((int)parmRam[254]);
 	if (data==2) loadStreamData(0x4000, 1024+512);
-	xprintf("Event handled. Resuming.\n");
+	// xprintf("Event handled. Resuming.\n");
 }
 
 void doDbgHook(int adr, int data) {
@@ -196,6 +207,7 @@ int main(void) {
 	void (*runptr)(void)=romemu;
 
 	//Make the STM run at 100MHz
+/* remove warning
 	const clock_scale_t hse_8mhz_3v3_96MHz={
 			.pllm = 8,
 			.plln = 192,
@@ -208,6 +220,7 @@ int main(void) {
 			.apb1_frequency = 50000000,
 			.apb2_frequency = 100000000,
 		};
+*/
 
 	//...well, actually, we're cheating and running the thing at 120MHz...
 	rcc_clock_setup_hse_3v3(&hse_8mhz_3v3[CLOCK_3V3_120MHZ]);
@@ -273,6 +286,3 @@ int main(void) {
 
 	return 0;
 }
-
-
-
