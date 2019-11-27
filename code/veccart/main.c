@@ -167,9 +167,10 @@ void doChangeRom(int i) {
 		if (i==0) break;
 		--i;
 	}
-	i=0;
-	while(fi.fname[i]!=0) buff[i+6]=fi.fname[i++];
-	buff[i+6]=0;
+
+//	xprintf("Adding filename [%s] to path\n", fi.fname);
+	strncat(buff, fi.fname, sizeof(buff)-1);
+
 	f_closedir(&d);
 	romData=cartData;
 	xprintf("Going to read rom image %s\n", buff);
