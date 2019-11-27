@@ -47,7 +47,6 @@
     (uvias_allowed no)
     (uvia_min_size 0)
     (uvia_min_drill 0)
-    (max_error 0.005)
     (edge_width 0.15)
     (segment_width 0.2)
     (pcb_text_width 0.3)

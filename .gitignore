@@ -25,5 +25,5 @@ fp-info-cache
 *.xml
 *.csv
 
-gerbers/
-gerbers.zip
+# System files
+.DS_Store
