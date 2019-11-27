@@ -51,13 +51,14 @@ wloop:
 	bne wloop
 
 	//According to my emu, the ROM reads a random header about 19296 times. Seems like
-	//Vectrexes with a GCE logo read it more often than my MB-branded one... hope this 
+	//Vectrexes with a GCE logo read it more often than my MB-branded one... hope this
 	//number holds up then.
-	cmp r8,#65536
+	// Note: this was resetting prematurely on GCE vectri with #0x10000
+	cmp r8,#0x40000
 	blo wloop
 
 	//Header read when the game has been running for a while. Hmm, cart probably is reset...
-	//Exchange the rom and me
+	//Exchange the rom and menu data
 	ldr r0,=romData
 	ldr r2,=menuData
 	str r2,[r0]
@@ -76,7 +77,7 @@ write:
 	ldr r0,[r1, 0x10]				//load addr word from gpioc
 	ubfx r0,r0,#0,#15		//and with 0x7fff
 
-	//We need to delay a while because the written data is only stable 
+	//We need to delay a while because the written data is only stable
 	//in the 2nd half of the cycle.
 	mov r6,#10
 waitdataloop:
@@ -94,7 +95,7 @@ waitdataloop:
 	//addr 0 = serial port addr
 	cmp r0,#0
 	beq outserial
-	
+
 	//See if it is a write to xxFF
 	and r0,#0xff
 	cmp r0,#0xff
