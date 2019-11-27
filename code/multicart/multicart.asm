@@ -24,10 +24,10 @@ rpcfn	EQU $cb00
 
 ;Cartridge header
 	ORG 0
-	fcb "g GCE 2015", $80		;'g' is copyright sign
+	fcb "g GCE 2019", $80		;'g' is copyright sign
 	fdb music1					;music from the rom
-	fcb $F8, $50, $20, -$56		; height, width, rel y, rel x (from 0,0)
-	fcb "MULTICART",$80			; some game information ending with $80
+	fcb $F8, $50, $20, -$40		; height, width, rel y, rel x (from 0,0)
+	fcb "VEXTREME",$80			; some game information ending with $80
 	fcb 0						; end of game header
 
 main
@@ -39,7 +39,7 @@ rpccopyloop
 	sta ,y+
 	cmpx #rpcfndatend
 	bne rpccopyloop
-	
+
 ;default values
 	lda lastselcart
 	anda #7
@@ -165,7 +165,7 @@ skipymove
 	jsr Read_Btns
 	cmpa #0
 	beq nobuttons
-	
+
 	;Start the game.
 	lda page	;Calculate the number of the ROM
 	lsla
@@ -280,8 +280,3 @@ text18
 	fcb "OMGWTFBBQ",$80
 text19
 	fcb "GNORK",$80
-
-
-
-
-
