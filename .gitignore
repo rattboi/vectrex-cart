@@ -27,3 +27,6 @@ fp-info-cache
 
 # System files
 .DS_Store
+
+# Released files
+code/releases/

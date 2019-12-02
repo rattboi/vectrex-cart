@@ -1,30 +1,32 @@
-Flashable USB Vectrex Cart
+VEXTREME Vectrex Multicart
 ===
 
 We're carrying on and pushing forward the amazing work of [Sprite_tm](http://spritesmods.com/?art=veccart&page=1) and his Extreme Vectrex Multicart. He posted the code (GPLv3 License) and lots of screens of the PCB/initial schematic, but he never released the PCB. It's a great base for an inexpensive and open multicart, for developers and players alike!
 
-PCB pins, edge cuts, and case holes based on [FrankBuss/bloxorz](https://github.com/FrankBuss/bloxorz)'s KiCaD PCB design.
-
 3D Renders
 ===
 
-![Front Render](renders/veccart-3d-front.png)
-![Back Render](renders/veccart-3d-back.png)
+![v0.2 Render](images/vextreme-v0.2-white.gif)
+
+Video Updates
+===
+
+Be sure to subscribe to my Youtube channel for updates!  Here's my [Vectrex playlist](https://www.youtube.com/watch?v=zkJ-z77fJCw&list=PL7MgXfpGKg6CCaIQejZVb5CsTg3-5mHU0&index=1) if you want to stay laser focused on this project.
 
 BOM and Parts ordering
 ===
 
-All the parts are described in ![veccart.csv](veccart.csv)
+All the parts are described in ![veccart.csv](bom/veccart.csv)
 
-Also, you can use this [DigiKey shared cart](https://www.digikey.com/short/phj9qt) if you're in a hurry.
+Also, you can use this [Digi-Key shared cart](https://www.digikey.com/short/phj9qt) if you're in a hurry.
 
 
 Ordering PCB's
 ===
 
-OSHPark is a good place to order with purple or the new "after dark" theme color scheme.  You can upload the KiCad [veccart.kicad_pcb](veccart.kicad_pcb) there directly.  I would download this entire Github repo ZIP file first though instead of just trying to save the PCB file from your browser.
+OSHPark is a good place to order with purple or the new "after dark" theme color scheme.  You can upload the KiCad [veccart.kicad_pcb](hardware/veccart.kicad_pcb) there directly.  I would download this entire Github repo ZIP file first though instead of just trying to save the PCB file from your browser.
 
-Another way to order PCB's is by using the included [gerbers](gerbers) and uploading those with all of the necessary specs to companies like [PCBWay](https://www.pcbway.com) or [JLCPCB](https://jlcpcb.com)
+Another way to order PCB's is by using the included [gerbers](hardware/gerbers) and uploading those with all of the necessary specs to companies like [PCBWay](https://www.pcbway.com) or [JLCPCB](https://jlcpcb.com)
 
 Building and Flashing STM firmware
 ===
@@ -117,6 +119,10 @@ Adding Vectrex Game ROMs (Binaries)
 
 - Add your first binaries there, may I suggest: [Beluga Dreams](https://8-bit-waves.itch.io/beluga-dreams) and [Vec-Man](http://eiti.fh-pforzheim.de/personen/johannsen/projektlabor/vectrex_2019/vectrex_game_vec_man.htm) ?
 
+Hall of Fame
+===
+
+If you build one of these, be sure to send me a message with your build pics showing your working VEXTREME multicart!  Or better yet, check out the [hall of fame format here](hall-of-fame/) and submit a PR (please and thank you!)
 
 LICENSE
 ===

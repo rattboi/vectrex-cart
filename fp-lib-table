@@ -1,3 +1,0 @@
-(fp_lib_table
-  (lib (name "veccart")(type "KiCad")(uri "${KIPRJMOD}/libs/veccart.pretty")(options "")(descr ""))
-)
