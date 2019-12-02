@@ -1,4 +1,4 @@
-update=Sunday, December 01, 2019 at 11:07:44 PM
+update=Monday, December 02, 2019 at 09:08:30 AM
 version=1
 last_client=kicad
 [cvpcb]
@@ -254,7 +254,7 @@ dPairViaGap=0.25
 [schematic_editor]
 version=1
 PageLayoutDescrFile=
-PlotDirectoryName=
+PlotDirectoryName=../pdf
 SubpartIdSeparator=0
 SubpartFirstId=65
 NetFmtName=Pcbnew
