@@ -121,6 +121,12 @@ Adding Vectrex Game ROMs (Binaries)
 
 - Add your first binaries there, may I suggest: [Beluga Dreams](https://8-bit-waves.itch.io/beluga-dreams) and [Vec-Man](http://eiti.fh-pforzheim.de/personen/johannsen/projektlabor/vectrex_2019/vectrex_game_vec_man.htm) ?
 
+Docs
+===
+
+A nice collection of lessons learned will be [documented here.](docs/)
+
+
 Hall of Fame
 ===
 
