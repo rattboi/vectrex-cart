@@ -25,8 +25,8 @@ rpcfn	EQU $cb00
 ;Cartridge header
 	ORG 0
 	fcb "g GCE 2019", $80		;'g' is copyright sign
-	fdb music1					;music from the rom
-	fcb $F8, $50, $20, -$40		; height, width, rel y, rel x (from 0,0)
+	fdb music1					; music from the rom
+	fcb $F8, $50, $20, -$37		; height, width, rel y, rel x (from 0,0)
 	fcb "VEXTREME",$80			; some game information ending with $80
 	fcb 0						; end of game header
 
@@ -173,8 +173,6 @@ skipymove
 	lsla
 	adda cursor
 	sta $7ffe	;Store in special cart location
-	ldu #$f000	;Warm start address
-	pshs u		;Push to stack so rpcfn will return to this
 	lda #1		;rpc call to load a rom
 	jmp rpcfn	;Call
 	;We shouldn't return here.
@@ -205,13 +203,63 @@ rpcwaitloop
 	lda $1
 	cmpa #' '
 	bne rpcwaitloop
+; NOTE: can't quite get this to work, and not sure why. Doing it the stupid way below
+	; set up header comparison
+;	ldx #$11
+;	ldy #rpcfn+(vextreme_marker-rpcfndat) ; needs to be relative to where it's copied in ram
+;headerloop
+;	lda ,x+
+;	ldb ,y+
+;	cmpa b
+;	bne newrom
+;	cmpx #$19
+;	bne headerloop
+;	jmp main ;start address
+;newrom
+;	ldu #$f000
+;	pshs u
+;	rts
+;vextreme_marker
+;	fcb "VEXTREME",$80			; for matching against cart header
+
+; NOTE: This is the stupid way, but it works
+	lda $11
+	cmpa #'V'
+	bne newrom
+	lda $12
+	cmpa #'E'
+	bne newrom
+	lda $13
+	cmpa #'X'
+	bne newrom
+	lda $14
+	cmpa #'T'
+	bne newrom
+	lda $15
+	cmpa #'R'
+	bne newrom
+	lda $16
+	cmpa #'E'
+	bne newrom
+	lda $17
+	cmpa #'M'
+	bne newrom
+	lda $18
+	cmpa #'E'
+	bne newrom
+	lda $19
+	cmpa #$80
+	bne newrom
+	jmp main ;start address
+newrom
+   ldu #$f000
+	pshs u
 	rts
 rpcfndatend
 
 
 ;Test multicart list data. This gets overwritten by the firmware running in the
 ;STM with actual cartridge data.
-
 	org $3ff
 lastselcart
 	fcb 0
@@ -238,7 +286,6 @@ filedata
 	fdb text18
 	fdb text19
 	fdb 0
-
 
 text0
 	fcb "CART 0",$80
