@@ -29,6 +29,7 @@
 #include <libopencm3/cm3/systick.h>
 #include "flash.h"
 #include "xprintf.h"
+#include "delay.h"
 
 #include "msc.h"
 
@@ -98,8 +99,8 @@ static const struct usb_config_descriptor config_descr = {
 };
 
 static const char *usb_strings[] = {
-	"SpritesMods.com",
-	"ExtremeVec",
+	"PlayVectrex.com",
+	"VEXTREME",
 	"0000",
 };
 
@@ -107,14 +108,6 @@ static const char *usb_strings[] = {
 static usbd_device *msc_dev;
 /* Buffer to be used for control requests. */
 static uint8_t usbd_control_buffer[128];
-
-static volatile uint32_t sysTimerMs;
-
-/* Called when systick fires */
-void sys_tick_handler(void) {
-	sysTimerMs++;
-}
-
 
 int ramdiskmain(void) {
 //	rcc_clock_setup_hse_3v3(&hse_8mhz_3v3[CLOCK_3V3_120MHZ]);
@@ -126,25 +119,21 @@ int ramdiskmain(void) {
 			GPIO9 | GPIO11 | GPIO12);
 	gpio_set_af(GPIOA, GPIO_AF10, GPIO9 | GPIO11 | GPIO12);
 
-	systick_set_reload(120000);
-	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
-	systick_counter_enable();
-	systick_interrupt_enable();
-
 	flashInit();
 
 	msc_dev = usbd_init(&otgfs_usb_driver, &dev_descr, &config_descr,
 			    usb_strings, 3,
 			    usbd_control_buffer, sizeof(usbd_control_buffer));
 
-	usb_msc_init(msc_dev, 0x82, 64, 0x01, 64, "SpMd", "ExtremeVec",
+	usb_msc_init(msc_dev, 0x82, 64, 0x01, 64, "GPL3", "VEXTREME",
 		"0", (16*1024*2)-16, flashReadBlk, flashWriteBlk);
 
 
+	uint32_t lastFlashTick = millis();
 	while(1) {
 		usbd_poll(msc_dev);
-		if (sysTimerMs>100) {
-			sysTimerMs=0;
+		if (millis() - lastFlashTick >= 100UL) {
+			lastFlashTick = 0;
 			flashTick();
 		}
 	}

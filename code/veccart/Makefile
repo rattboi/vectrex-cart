@@ -1,6 +1,6 @@
 BINARY=veccart
 OBJS=main.o romemu.o msc.o xprintf.o usb_msc.o ff_diskio.o \
-		fatfs/ff.o fatfs/option/unicode.o flash.o
+		fatfs/ff.o fatfs/option/unicode.o flash.o led.o delay.o
 
 LIBNAME = opencm3_stm32f4
 ARCH_FLAGS = -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mthumb -mcpu=cortex-m4 -DSTM32F4
@@ -17,7 +17,7 @@ CFLAGS		+= -O3 -g -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-d
 		-Wmissing-prototypes -Wstrict-prototypes -fno-common -ffunction-sections -fdata-sections \
 		-MD -Wall -Wundef -I$(TOOLCHAIN_DIR)/include $(ARCH_FLAGS)
 
-LDSCRIPT	= stm32f411rct6.ld 
+LDSCRIPT	= stm32f411rct6.ld
 #../libopencm3/lib/lib$(LIBNAME).ld
 
 LDFLAGS		+= --static -nostartfiles -L$(TOOLCHAIN_DIR)/lib  \
@@ -29,6 +29,17 @@ LDFLAGS		+= --static -nostartfiles -L$(TOOLCHAIN_DIR)/lib  \
 .SUFFIXES: .elf .bin .hex .srec .list .images
 .SECONDEXPANSION:
 .SECONDARY:
+
+# Unzipped release files to code/releases/
+# Specify release version like so
+# make flash-bin VER=v0.1
+flash-release:
+	dfu-util -a 0 -d 0483:df11 -s 0x08000000:leave -D ../releases/$(VER)/stm32/veccart.bin
+
+# Specify bin like so
+# make flash-bin BIN=../releases/v0.1/stm32/veccart.bin
+flash-bin:
+	dfu-util -a 0 -d 0483:df11 -s 0x08000000:leave -D $(BIN)
 
 all: docker
 

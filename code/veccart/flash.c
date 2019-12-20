@@ -30,11 +30,11 @@ static volatile uint32_t flashBlkAge;
 static uint8_t flashBlkData[4096];
 static int flashBlkAddr=-1;
 
-//SPI flash - W25Q128VF
-//cs - 50 - PA15 - SPI1_NSS
-//DO - 56 - PB4 - SP1_MISO
-//CLK - 55 - PB3 - SP1_SCK
-//DI - 57 - PB5 - SP1_MOSI
+// SPI flash - W25Q128VF
+// CS -  50 - PA15 - SPI1_NSS
+// DO -  56 - PB4  - SPI1_MISO
+// CLK - 55 - PB3  - SPI1_SCK
+// DI -  57 - PB5  - SPI1_MOSI
 //This flash has 4K sectors, divided in 256-byte pages.
 //This means that if we write a (512-byte) sector, we need to
 //read the 4k sector, erase it, modify the 512 bytes in the RAM
@@ -109,6 +109,9 @@ void flashInit(void) {
 		flashCs(1);
 	} while (mf==0 || mf==0xff || id==0 || id==0xff);
 	xprintf("Flash inited (id/mf %x/%x).\n", id, mf);
+
+	// Maybe you need to uncomment this to recover your SPI flash from being corrupted :)
+	// flashEraseChip();
 }
 
 

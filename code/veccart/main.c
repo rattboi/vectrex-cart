@@ -19,6 +19,7 @@
 #include <libopencm3/stm32/syscfg.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/usart.h>
+#include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/exti.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/rcc.h>
@@ -27,6 +28,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "led.h"
+#include "delay.h"
 #include "main.h"
 #include "msc.h"
 
@@ -96,6 +99,8 @@ void loadRom(char *fn) {
 	fr=f_open(&f, fn, FA_READ);
 	if (fr) {
 		xprintf("Error opening file: %d\n", fr);
+	} else {
+		xprintf("Opened file: %s\n", fn);
 	}
 	f_read(&f, romData, 64*1024, &r);
 	if (n>32*1024 && r<=32*1024) {
@@ -159,6 +164,7 @@ void sortDirectory(char *fdir) {
 		}
 
 		is_dir = (fi.fattrib & AM_DIR) ? 1 : 0;
+		if (fi.lfname[0]=='.') continue; // ignore MacOS dotfiles
 		name=fi.lfname;
 		if (name==NULL || name[0]==0) name=fi.fname; //use short name if no long name available
 
@@ -204,7 +210,7 @@ void loadListing(char *fdir) {
 		//xprintf("Found file %s (%d), file %d\n", name, is_dir, idx);
 		romData[ptrpos++]=strpos>>8;
 		romData[ptrpos++]=strpos&0xff;
-		
+
 		// remove extensions
 		removeExtension(name, ".bin");
 		removeExtension(name, ".BIN");
@@ -313,14 +319,16 @@ int main(void) {
 	rcc_periph_clock_enable(RCC_USART1);
 	rcc_periph_clock_enable(RCC_SYSCFG);
 
+	//Addressable LEDs - output
+	gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO13 | GPIO14);
+	// gpio_set_output_options(GPIOB, GPIO_OTYPE_PP, GPIO_OSPEED_2MHZ,  GPIO13 | GPIO14);
 	//LED - output
 	gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0);
 	//USB power - input
 	gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN, GPIO9);
 
 	//PB6/PB7: txd/rxd
-	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE,
-			GPIO6 | GPIO7);
+	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6 | GPIO7);
 	gpio_set_af(GPIOB, GPIO_AF7, GPIO6 | GPIO7);
 
 	usart_set_baudrate(USART1, 115200);
@@ -333,26 +341,99 @@ int main(void) {
 	usart_enable(USART1);
 	xdev_out(uart_output_func);
 
-	//Address lines - input
-	gpio_mode_setup(GPIOC, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN, 
+	//Address lines - input (A0 - A14 & PB6)
+	gpio_mode_setup(GPIOC, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN,
 		GPIO0|GPIO1|GPIO2|GPIO3|GPIO4|GPIO5|GPIO6|GPIO7|GPIO8|GPIO9|GPIO10|GPIO11|GPIO12|GPIO13|GPIO14|GPIO15);
-	gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, 
-		GPIO13|GPIO14);
+	// gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE,
+	// 	GPIO13|GPIO14);
+	// IRQ
+	gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO9);
 
 	//Data lines - output
-	gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, 
+	gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,
 		GPIO0|GPIO1|GPIO2|GPIO3|GPIO4|GPIO5|GPIO6|GPIO7);
 
 	//Control lines - input
-	gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, 
+	gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE,
 		GPIO1|GPIO15);
+
+	// SysTick setup (calls sys_tick_handler() every 1ms), also required for delay/millis
+	systick_set_reload(120000);
+	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
+	systick_counter_enable();
+	systick_interrupt_enable();
+
 	xprintf("Inited.\n");
+
+	// Test Addressable LEDs
+	// Addressable RGB LEDs
+	uint32_t colors[] = {
+		0,		  // off
+		0xFF0000, // red
+		0xFF9900, // orange
+		0xFFFF00, // yellow
+		0x00FF00, // green
+		0x00FFFF, // cyan
+		0x0000FF, // blue
+		0x7700FF, // pink
+		0xFF00FF, // magenta
+		0xFFFFFF  // white
+	};
+	ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+	ledsSetBrightness(150); // be careful not to set this too high when using white, those LEDs draw some power!!
+	uint32_t start = millis();
+	while (millis() - start <= 2000UL) {
+		rainbowCycle(10);
+	}
+
+#if 0 // TEST LED CODE START
+	while (1) {
+		// color wipe back and fourth through the list of colors
+		ledsClear();
+		ledsSetBrightness(150);
+		bool dir = true;
+		for (int x = 1; x < sizeof(colors)/sizeof(*colors); x++) {
+			colorWipe(dir, colors[x], 50);
+			dir = !dir;
+		}
+
+		ledsClear();
+		ledsSetBrightness(255);
+		rainbowCycle(10);
+		rainbowCycle(10);
+
+		ledsClear();
+		knightRider(6, 64, 4, 2, 8, 0xFF7700); // Cycles, Speed, Width, First, Last, RGB Color (original orange-red)
+		knightRider(3, 32, 4, 2, 8, 0xFF00FF); // Cycles, Speed, Width, First, Last, RGB Color (purple)
+		knightRider(3, 32, 4, 2, 8, 0x0000FF); // Cycles, Speed, Width, First, Last, RGB Color (blue)
+		knightRider(3, 32, 5, 2, 8, 0x00FF00); // Cycles, Speed, Width, First, Last, RGB Color (green)
+		knightRider(3, 32, 5, 2, 8, 0xFFFF00); // Cycles, Speed, Width, First, Last, RGB Color (yellow)
+		knightRider(3, 32, 7, 2, 8, 0x00FFFF); // Cycles, Speed, Width, First, Last, RGB Color (cyan)
+		knightRider(3, 32, 7, 2, 8, 0xFFFFFF); // Cycles, Speed, Width, First, Last, RGB Color (white)
+
+		// Iterate through a whole rainbow of colors
+		for(uint8_t j=0; j<252; j+=7) {
+			knightRider(1, 16, 2, 0, 8, colorWheel(j)); // Cycles, Speed, Width, RGB Color
+		}
+
+		ledsClear();
+		ledsSetBrightness(255);
+		int y = 10;
+		for (int x=0; x<10; x++) {
+			theaterChaseRainbow(y);
+			y += 5;
+		}
+	}
+#endif // TEST LED CODE END
 
 	//If USB power pin is high, boot into USB disk mode
 	if (gpio_get(GPIOA, GPIO9)) {
 		xprintf("USB dev mode.\n");
 		ramdiskmain();
 	} else {
+		// disable this or it will delay our ROM emulation!
+		systick_interrupt_disable();
+
 		//Load the menu game
 		strncpy(menuDir, "/roms", sizeof(menuDir));
 		f_mount(&FatFs, "", 0);
