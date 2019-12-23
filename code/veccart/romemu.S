@@ -54,7 +54,7 @@ wloop:
 	//Vectrexes with a GCE logo read it more often than my MB-branded one... hope this
 	//number holds up then.
 	// Note: this was resetting prematurely on GCE vectri with #0x10000
-	cmp r8,#0x40000
+	cmp r8,#0x80000
 	blo wloop
 
 	//Header read when the game has been running for a while. Hmm, cart probably is reset...
