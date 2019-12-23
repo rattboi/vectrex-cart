@@ -132,7 +132,7 @@ int ramdiskmain(void) {
 	uint32_t lastFlashTick = millis();
 	while(1) {
 		usbd_poll(msc_dev);
-		if (millis() - lastFlashTick >= 100UL) {
+		if (millis() - lastFlashTick >= 20UL) {
 			lastFlashTick = millis();
 			flashTick();
 		}
