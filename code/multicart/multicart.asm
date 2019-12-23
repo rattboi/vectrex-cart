@@ -12,318 +12,417 @@
 ;
 ; You should have received a copy of the GNU Lesser General Public License
 ; along with this library.  If not, see <http://www.gnu.org/licenses/>.
-	include "vectrex.i"
-
-page	EQU	$ca00
-cursor	EQU $ca01
-curpos  EQU $ca02
-waitjs	EQU $ca03
-lastpage EQU $ca04
-
-rpcfn	EQU $cb00
-
-;Cartridge header
-	ORG 0
-	fcb "g GCE 2019", $80		;'g' is copyright sign
-	fdb music1					; music from the rom
-	fcb $F8, $50, $20, -$37		; height, width, rel y, rel x (from 0,0)
-	fcb "VEXTREME",$80			; some game information ending with $80
-	fcb 0						; end of game header
-
+;
+                    include  "vectrex.i"
+;***************************************************************************
+; DEFINES SECTION
+;***************************************************************************
+MENU_POS_X          equ      #-110
+MENU_POS_Y          equ      #50
+MENU_ITEMS_MAX      equ      #4
+;***************************************************************************
+; USER RAM SECTION ($C880-$CBEA)
+;***************************************************************************
+user_ram            equ      $c880
+page                equ      $c880
+cursor              equ      $c881
+curpos              equ      $c882
+waitjs              equ      $c883
+lastpage            equ      $c884
+header_scale        equ      $c885
+header_dir          equ      $c886
+;***************************************************************************
+; VECTREX RAM SECTION ($C800-$CFFF)
+;***************************************************************************
+rpcfn               equ      $cb00
+;***************************************************************************
+; HEADER SECTION
+;***************************************************************************
+                    org      0
+                    fcb      "g GCE 2019", $80            ; 'g' is copyright sign
+                    fdb      vextreme_tune1               ; catchy intro music to get stuck in your head
+                    fcb      $F6, $60, $20, -$42
+                    fcb      "VEXTREME",$80               ; some game information ending with $80
+                    fcb      0                            ; end of game header
+;***************************************************************************
+; CODE SECTION
+;***************************************************************************
+; here the cartridge program starts off
 main
-;copy rpc fn into place
-	ldx #rpcfndat
-	ldy #rpcfn
+rpccopystart
+                    ldx      #rpcfndat
+                    ldy      #rpcfn
 rpccopyloop
-	lda ,x+
-	sta ,y+
-	cmpx #rpcfndatend
-	bne rpccopyloop
-
-;default values
-	lda lastselcart
-	anda #7
-	sta cursor
-	lda lastselcart
-	lsra
-	lsra
-	lsra
-	sta page
-
+                    lda      ,x+
+                    sta      ,y+
+                    cmpx     #rpcfndatend
+                    bne      rpccopyloop
+init_vars
+; init menu var
+                    lda      lastselcart
+                    anda     #3
+                    sta      cursor
+                    lda      lastselcart
+                    lsra
+                    lsra
+                    lsra
+                    sta      page
+; init vextreme logo vars
+                    lda      #1
+                    sta      header_dir
+                    lda      #$5
+                    sta      header_scale
 loop
-;Recal video stuff
-	JSR Wait_Recal
-	JSR Intensity_5F
-
-;js things
-	lda #1
-	sta Vec_Joy_Mux_1_X
-	lda #3
-	sta Vec_Joy_Mux_1_Y
-	lda #0
-	sta Vec_Joy_Mux_2_X
-	sta Vec_Joy_Mux_2_Y
-
-
-	lda #0
-	sta curpos
+; Recal video stuff
+                    jsr      Wait_Recal
+                    jsr      Intensity_5F
+; display vextreme logo
+                    ldu      #vextreme_logo               ; address of list
+                    lda      #$7f                         ; Text position relative Y
+                    ldb      #$0                          ; Text position relative X
+                    tfr      d,x                          ; in x position of list
+                    lda      #80                          ; scale positioning
+                    ldb      header_scale                 ; scale move in list
+                    jsr      draw_synced_list
+; header zoom in animation
+                    lda      header_scale
+                    cmpa     #$20
+                    beq      exitHeaderZoom
+                    inca
+                    sta      header_scale
+exitHeaderZoom
+; menu font settings
+                    ldd      #$f160
+                    std      Vec_Text_HW
+                    lda      #$80
+                    sta      <VIA_t1_cnt_lo
+; update joystick
+                    lda      #1
+                    sta      Vec_Joy_Mux_1_X
+                    lda      #3
+                    sta      Vec_Joy_Mux_1_Y
+                    lda      #0
+                    sta      Vec_Joy_Mux_2_X
+                    sta      Vec_Joy_Mux_2_Y
+                    lda      #0
+                    sta      curpos
 nameloop
-	;Handle highlighting of active entry
-	ldb cursor
-	cmpb curpos
-	bne nohighlight
-	JSR Intensity_7F
-	bra hlend
+                    ldb      cursor						  ;Handle highlighting of active entry
+                    cmpb     curpos
+                    bne      nohighlight
+                    jsr      Intensity_7F
+                    bra      hlend
+
 nohighlight
-	JSR Intensity_5F
+                    jsr      Intensity_5F
 hlend
+                    ldu      #filedata                    ;data of pointer to filenames
+                    ldb      page                         ;load page no
+                    lda      #0
+                    lslb                                  ; *4
+                    rola                                  ; |
+                    lslb                                  ; |
+                    rola                                  ; |
+                    addb     curpos                       ;add in current pos
+                    adca     #0
+                    lslb                                  ;because the addresses are 2 bytes
+                    rola
+                    leau     d,u                          ;fetch addr of string, page
+                    ldu      a,u                          ;add pos
+                    lda      curpos
+                    nega                                  ;because y decreases downward
+                    lsla                                  ; *8
+                    lsla                                  ; |
+                    lsla                                  ; | (fine tunes Y line spacing, add more lsla's to inc.)
+                    adda     #MENU_POS_Y                  ; menu y offset from 0,0
+                    cmpu     #0                           ;see if we're at the end of the list
+                    bne      showtitle
+                                                          ;Yep -> bail out
+                    lda      #1
+                    sta      lastpage
+                    bra      gfxend
 
-	ldu #filedata	;data of pointer to filenames
-	ldb page		;load page no
-	lda #0
-	lslb			;*8
-	rola
-	lslb
-	rola
-	lslb
-	rola
-	addb curpos		;add in current pos
-	adca #0
-	lslb			;because the addresses are 2 bytes
-	rola
-	leau d,u			;fetch addr of string, page
-	ldu a,u			;add pos
-
-	lda curpos
-	nega			;because y decreases downward
-	lsla			;*16
-	lsla
-	lsla
-	lsla
-	adda #50		;move up by a bit
-	cmpu #0			;;se if we're at the end of the list
-	bne showtitle
-	;Yep -> bail out
-	lda #1
-	sta lastpage
-	bra gfxend
 showtitle
-	ldb #-110		;x offset
-	jsr Print_Str_d	;print string
-
-	lda curpos
-	inca
-	sta curpos
-	cmpa #8
-	bne nameloop
-
-	lda #0
-	sta lastpage
+                    ldb      #MENU_POS_X                  ; menu x offset from 0,0
+                    jsr      sync_Print_Str_d             ;print string
+                    lda      curpos
+                    inca
+                    sta      curpos
+                    cmpa     #MENU_ITEMS_MAX              ; number of menu items
+                    bne      nameloop
+                    lda      #0
+                    sta      lastpage
 gfxend
 ;End of gfx routines.
-
-
 ;Input handling
-	lda waitjs
-	bne dowaitjszero
-
-
-	jsr Joy_Digital
+                    lda      waitjs
+                    bne      dowaitjszero
+                    jsr      Joy_Digital
 ;X handling
-	lda Vec_Joy_1_X
-	beq skipxmove
-	bpl xneg
-	lda page
-	beq xmovedone
-	dec page
-	bra xmovedone
+                    lda      Vec_Joy_1_X
+                    beq      skipxmove
+                    bpl      xneg
+                    lda      page
+                    beq      xmovedone
+                    dec      page
+                    bra      xmovedone
+
 xneg
-	lda lastpage
-	bne xmovedone
-	inc page
+                    lda      lastpage
+                    bne      xmovedone
+                    inc      page
 xmovedone
-	ldb 1
-	stb waitjs
+                    ldb      1
+                    stb      waitjs
 skipxmove
-
 ;Y handling
-	lda Vec_Joy_1_Y
-	beq skipymove
-	bpl yneg
-	inc cursor
-	bra ymovedone
+                    lda      Vec_Joy_1_Y
+                    beq      skipymove
+                    bpl      yneg
+                    inc      cursor
+                    bra      ymovedone
+
 yneg
-	dec cursor
+                    dec      cursor
 ymovedone
-	lda #7
-	anda cursor
-	sta cursor
-	ldb 1
-	stb waitjs
+                    lda      #MENU_ITEMS_MAX              ; index of menu items (0 to N-1)
+                    deca                                  ; |
+                    anda     cursor
+                    sta      cursor
+                    ldb      1
+                    stb      waitjs
 skipymove
+                    jsr      Read_Btns
+                    cmpa     #0
+                    beq      nobuttons
+                                                          ;Start the game.
+                    lda      page                         ;Calculate the number of the ROM
+                    lsla                                  ; (page * 4) + cursor
+                    lsla                                  ;  |
+                    adda     cursor                       ;  |
+                    sta      $7ffe                        ;Store in special cart location
+                    lda      #1                           ;rpc call to load a rom
+                    jmp      rpcfn                        ;Call
 
-	jsr Read_Btns
-	cmpa #0
-	beq nobuttons
-
-	;Start the game.
-	lda page	;Calculate the number of the ROM
-	lsla
-	lsla
-	lsla
-	adda cursor
-	sta $7ffe	;Store in special cart location
-	lda #1		;rpc call to load a rom
-	jmp rpcfn	;Call
-	;We shouldn't return here.
+                                                          ;We shouldn't return here.
 nobuttons
-	jmp loop
+                    jmp      loop
 
 ;Js has been touched. Ignore input until it returns.
 ;(ToDo: input repeating?)
 dowaitjszero
-	jsr Joy_Digital
-	lda Vec_Joy_1_X
-	bne nozero
-	lda Vec_Joy_1_Y
-	bne nozero
-	sta waitjs
+                    jsr      Joy_Digital
+                    lda      Vec_Joy_1_X
+                    bne      nozero
+                    lda      Vec_Joy_1_Y
+                    bne      nozero
+                    sta      waitjs
 nozero
-	jmp loop
-
+                    jmp      loop
 
 ;Rpc function. Because this makes the cart unavailable, this
 ;will copied to SRAM. Call as rpcfn.
 rpcfndat
-	sta $7fff
+                    sta      $7fff
 rpcwaitloop
-	lda $0
-	cmpa #'g'
-	bne rpcwaitloop
-	lda $1
-	cmpa #' '
-	bne rpcwaitloop
+                    lda      $0
+                    cmpa     # 'g'
+                    bne      rpcwaitloop
+                    lda      $1
+                    cmpa     # ' '
+                    bne      rpcwaitloop
 ; NOTE: can't quite get this to work, and not sure why. Doing it the stupid way below
-	; set up header comparison
-;	ldx #$11
-;	ldy #rpcfn+(vextreme_marker-rpcfndat) ; needs to be relative to where it's copied in ram
+                                                          ; set up header comparison
+;    ldx #$11
+;    ldy #rpcfn+(vextreme_marker-rpcfndat) ; needs to be relative to where it's copied in ram
 ;headerloop
-;	lda ,x+
-;	ldb ,y+
-;	cmpa b
-;	bne newrom
-;	cmpx #$19
-;	bne headerloop
-;	jmp main ;start address
+;    lda ,x+
+;    ldb ,y+
+;    cmpa b
+;    bne newrom
+;    cmpx #$19
+;    bne headerloop
+;    jmp main ;start address
 ;newrom
-;	ldu #$f000
-;	pshs u
-;	rts
+;    ldu #$f000
+;    pshs u
+;    rts
 ;vextreme_marker
-;	fcb "VEXTREME",$80			; for matching against cart header
-
+;    fcb "VEXTREME",$80            ; for matching against cart header
 ; NOTE: This is the stupid way, but it works
-	lda $11
-	cmpa #'V'
-	bne newrom
-	lda $12
-	cmpa #'E'
-	bne newrom
-	lda $13
-	cmpa #'X'
-	bne newrom
-	lda $14
-	cmpa #'T'
-	bne newrom
-	lda $15
-	cmpa #'R'
-	bne newrom
-	lda $16
-	cmpa #'E'
-	bne newrom
-	lda $17
-	cmpa #'M'
-	bne newrom
-	lda $18
-	cmpa #'E'
-	bne newrom
-	lda $19
-	cmpa #$80
-	bne newrom
-	jmp main ;start address
+                    lda      $11
+                    cmpa     # 'V'
+                    bne      newrom
+                    lda      $12
+                    cmpa     # 'E'
+                    bne      newrom
+                    lda      $13
+                    cmpa     # 'X'
+                    bne      newrom
+                    lda      $14
+                    cmpa     # 'T'
+                    bne      newrom
+                    lda      $15
+                    cmpa     # 'R'
+                    bne      newrom
+                    lda      $16
+                    cmpa     # 'E'
+                    bne      newrom
+                    lda      $17
+                    cmpa     # 'M'
+                    bne      newrom
+                    lda      $18
+                    cmpa     # 'E'
+                    bne      newrom
+                    lda      $19
+                    cmpa     #$80
+                    bne      newrom
+                    jmp      main                         ;start address
+
 newrom
-   ldu #$f000
-	pshs u
-	rts
+                    ldu      #$f000
+                    pshs     u
+                    rts
+
 rpcfndatend
-
-
+;***************************************************************************
+; SUBROUTINE SECTION
+;***************************************************************************
+                    include  "printStringSync.asm"
+                    include  "drawSyncList.asm"
+;***************************************************************************
+; DATA SECTION
+;***************************************************************************
+                    include  "font_5_fixed.asm"
+                    include  "vextremeLogo.asm"
+; VEXTREME Tune Notes
+CS5                 equ      $1E
+F5                  equ      $22
+FS5                 equ      $23
+GS5                 equ      $25
+AS5                 equ      $27
+RST                 equ      $3F
+VIBENL              fcb      0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+FADE14              fdb      $0000,$2DDD,$DDDD,$B000,0,0,0,0
+; VEXTREME Intro Tune
+vextreme_tune1
+                    fdb      FADE14
+                    fdb      VIBENL
+                    fcb      FS5,8
+                    fcb      FS5,8
+                    fcb      FS5,8
+                    fcb      AS5,16
+                    fcb      GS5,16
+                    fcb      FS5,16
+                    fcb       F5,16
+                    fcb      CS5,8
+                    fcb      FS5,8
+                    fcb      RST,8
+                    fcb      0,$80 ; $80 is end marker for music, frequency is not played so 0
+;***************************************************************************
+; MENU SECTION
+;***************************************************************************
 ;Test multicart list data. This gets overwritten by the firmware running in the
 ;STM with actual cartridge data.
-	org $3ff
+                    org      $fff
 lastselcart
-	fcb 0
-	org $400
+                    fcb      0
+                    org      $1000
 filedata
-	fdb text0
-	fdb text1
-	fdb text2
-	fdb text3
-	fdb text4
-	fdb text5
-	fdb text6
-	fdb text7
-	fdb text8
-	fdb text9
-	fdb text10
-	fdb text11
-	fdb text12
-	fdb text13
-	fdb text14
-	fdb text15
-	fdb text16
-	fdb text17
-	fdb text18
-	fdb text19
-	fdb 0
-
+                    fdb      text0
+                    fdb      text1
+                    fdb      text2
+                    fdb      text3
+                    fdb      text4
+                    fdb      text5
+                    fdb      text6
+                    fdb      text7
+                    fdb      text8
+                    fdb      text9
+                    fdb      text10
+                    fdb      text11
+                    fdb      text12
+                    fdb      text13
+                    fdb      text14
+                    fdb      text15
+                    fdb      text16
+                    fdb      text17
+                    fdb      text18
+                    fdb      text19
+                    fdb      font1
+                    fdb      font2
+                    fdb      font3
+                    fdb      font4
+                    fdb      font5
+                    fdb      font6
+                    fdb      font7
+                    fdb      font8
+                    fdb      font9
+                    fdb      font10
+                    fdb      font11
+                    fdb      font12
+                    fdb      0
 text0
-	fcb "CART 0",$80
+                    fcb      "CART 1",$80
 text1
-	fcb "CART 1",$80
+                    fcb      "CART 2",$80
 text2
-	fcb "CART 2",$80
+                    fcb      "CART 3",$80
 text3
-	fcb "DERDE CART",$80
+                    fcb      "CART 4",$80
 text4
-	fcb "DE VIERDE UNIT",$80
+                    fcb      "DE VIERDE UNIT",$80
 text5
-	fcb "EENTJE MET EEN LANGE NAAM DUS",$80
+                    fcb      "EENTJE MET EEN LANGE NAAM DUS",$80
 text6
-	fcb "BEN IK HET AL ZAT?",$80
+                    fcb      "BEN IK HET AL ZAT?",$80
 text7
-	fcb "LALALA",$80
+                    fcb      "LALALA",$80
 text8
-	fcb "OMGWTFBBQ",$80
+                    fcb      "OMGWTFBBQ",$80
 text9
-	fcb "GNORK",$80
+                    fcb      "GNORK",$80
 text10
-	fcb "EENTJE MET EEN LANGE NAAM DUS",$80
+                    fcb      "EENTJE MET EEN LANGE NAAM DUS",$80
 text11
-	fcb "BEN IK HET AL ZAT?",$80
+                    fcb      "BEN IK HET AL ZAT?",$80
 text12
-	fcb "LALALA",$80
+                    fcb      "LALALA",$80
 text13
-	fcb "OMGWTFBBQ",$80
+                    fcb      "OMGWTFBBQ",$80
 text14
-	fcb "GNORK",$80
+                    fcb      "GNORK",$80
 text15
-	fcb "GNORK2",$80
+                    fcb      "GNORK2",$80
 text16
-	fcb "GNORK3",$80
+                    fcb      "GNORK3",$80
 text17
-	fcb "GNORK4",$80
+                    fcb      "GNORK4",$80
 text18
-	fcb "OMGWTFBBQ",$80
+                    fcb      "OMGWTFBBQ",$80
 text19
-	fcb "GNORK",$80
+                    fcb      "GNORK",$80
+font1
+                    fcb      "! \"#$%&",$80
+font2
+                    fcb      "`()*+,-./",$80
+font3
+                    fcb      "0123456789",$80
+font4
+                    fcb      ":;<=>?@",$80
+font5
+                    fcb      "ABCDEFGH",$80
+font6
+                    fcb      "IJKLMNOP",$80
+font7
+                    fcb      "QRSTUVW",$80
+font8
+                    fcb      "YZ[\]^_",$80
+font9
+                    fcb      "abcdefgh",$80
+font10
+                    fcb      "ijklmnop",$80
+font11
+                    fcb      "qrstuvw",$80
+font12
+                    fcb      "xyz{|}~",$80
