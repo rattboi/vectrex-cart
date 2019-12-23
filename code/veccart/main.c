@@ -39,6 +39,7 @@
 
 //Memory for the menu ROM and the running cartridge.
 //We keep both in memory so we can quickly exchange them when a reset has been detected.
+const int menuIndex = 0xfff; // fixed location in multicart.bin
 char menuData[8*1024];
 char *romData=menuData;
 unsigned char parmRam[256];
@@ -189,8 +190,8 @@ void loadListing(char *fdir) {
 	char buff[30];
 	char *name;
 
-	int strpos=0x800; //enough for 512 name ptrs
-	int ptrpos=0x400;
+	int ptrpos = menuIndex + 1;  // fixed location in multicart.bin for 512 filename pointers (from &ptrpos ~ &strpos)
+	int strpos = ptrpos + 0x200; // filename data starts here
 
 	int i;
 	int is_dir;
@@ -264,7 +265,7 @@ void loadStreamData(int addr, int len) {
 void doChangeRom(char* basedir, int i) {
 	char buff[300];
 
-	menuData[0x3ff]=i; //save selection so we can go back there after reset
+	menuData[menuIndex]=i; //save selection so we can go back there after reset
 	xprintf("Changing to rom no %d in %s\n", i, basedir);
 	sortDirectory(basedir); // recreate file listing, as loading a cart overwrote the union
 	file_entry f = c_and_l.listing.f_entry[i];
@@ -282,7 +283,7 @@ void doChangeRom(char* basedir, int i) {
 
 		romData=menuData;
 		loadListing(menuDir);
-		menuData[0x3ff]=0; //save selection so we can go back there after reset
+		menuData[menuIndex]=0; //save selection so we can go back there after reset
 
 		xprintf("Done listing for : %s\n", menuDir);
 	} else {													/* It is a file. */
