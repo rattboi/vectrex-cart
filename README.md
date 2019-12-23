@@ -100,7 +100,7 @@ code/multicart $ make docker-build
 ### Build and flash the multicart menu binary
 ```
 // Mac OS
-code/multicart $ make && cp multicart.bin /Volumes/VEXTREME/multicart.bin
+code/multicart $ make clean all && cp multicart.bin /Volumes/VEXTREME/
 
 // optionally add this to the above command to unmount, after you figure out which drive it is
 $ diskutil list

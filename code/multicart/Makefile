@@ -7,11 +7,16 @@ default: docker
 docker-build: Dockerfile
 	docker build . -t asm6809
 
-docker: 
+all: docker
+
+docker:
 	docker run --rm -v `pwd`:/build -u `id -u ${USER}`:`id -g ${USER}` asm6809 make multicart.bin
 
 multicart.bin: multicart.asm
 	$(AS)  -B -o $@ $^
+
+clean:
+	rm -f multicart.bin
 
 copy: multicart.bin
 	sudo mount /dev/sde1 /mnt
