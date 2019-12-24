@@ -231,59 +231,22 @@ rpcwaitloop
                     lda      $1
                     cmpa     # ' '
                     bne      rpcwaitloop
-; NOTE: can't quite get this to work, and not sure why. Doing it the stupid way below
-                                                          ; set up header comparison
-;    ldx #$11
-;    ldy #rpcfn+(vextreme_marker-rpcfndat) ; needs to be relative to where it's copied in ram
-;headerloop
-;    lda ,x+
-;    ldb ,y+
-;    cmpa b
-;    bne newrom
-;    cmpx #$19
-;    bne headerloop
-;    jmp main ;start address
-;newrom
-;    ldu #$f000
-;    pshs u
-;    rts
-;vextreme_marker
-;    fcb "VEXTREME",$80            ; for matching against cart header
-; NOTE: This is the stupid way, but it works
-                    lda      $11
-                    cmpa     # 'V'
+                    ; set up header comparison
+                    ldx      #$11
+                    ldu      #rpcfn+(vextreme_marker-rpcfndat) ; needs to be relative to where it's copied in ram
+headerloop
+                    lda      ,x+
+                    cmpa     ,u+
                     bne      newrom
-                    lda      $12
-                    cmpa     # 'E'
-                    bne      newrom
-                    lda      $13
-                    cmpa     # 'X'
-                    bne      newrom
-                    lda      $14
-                    cmpa     # 'T'
-                    bne      newrom
-                    lda      $15
-                    cmpa     # 'R'
-                    bne      newrom
-                    lda      $16
-                    cmpa     # 'E'
-                    bne      newrom
-                    lda      $17
-                    cmpa     # 'M'
-                    bne      newrom
-                    lda      $18
-                    cmpa     # 'E'
-                    bne      newrom
-                    lda      $19
-                    cmpa     #$80
-                    bne      newrom
-                    jmp      main                         ;start address
-
+                    cmpx     #$1A
+                    bne      headerloop
+                    jmp      loop ;start address
 newrom
                     ldu      #$f000
                     pshs     u
                     rts
-
+vextreme_marker
+                    fcb      "VEXTREME",$80   ; for matching against cart header
 rpcfndatend
 ;***************************************************************************
 ; SUBROUTINE SECTION

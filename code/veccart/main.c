@@ -37,6 +37,8 @@
 #include "xprintf.h"
 #include "fatfs/ff.h"
 
+#define MENU_TEXT_LEN 20
+
 //Memory for the menu ROM and the running cartridge.
 //We keep both in memory so we can quickly exchange them when a reset has been detected.
 const int menuIndex = 0xfff; // fixed location in multicart.bin
@@ -218,7 +220,7 @@ void loadListing(char *fdir) {
 		removeExtension(name, ".vec");
 		removeExtension(name, ".VEC");
 
-		i = is_dir ? 18 : 20;
+		i = is_dir ? (MENU_TEXT_LEN-2) : MENU_TEXT_LEN;
 		if (is_dir) romData[strpos++]='<';
 		while (*name!=0 && i>0) {
 			if (*name<32) {
