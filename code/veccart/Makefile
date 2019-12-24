@@ -1,5 +1,5 @@
 BINARY=veccart
-OBJS=main.o romemu.o msc.o xprintf.o usb_msc.o ff_diskio.o \
+OBJS=main.o menu.o romemu.o msc.o xprintf.o usb_msc.o ff_diskio.o \
 		fatfs/ff.o fatfs/option/unicode.o flash.o led.o delay.o
 
 LIBNAME = opencm3_stm32f4
