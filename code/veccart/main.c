@@ -121,8 +121,30 @@ void loadStreamData(int addr, int len) {
 	f_read(&streamFile, &romData[addr], len, &r);
 }
 
-//User has made a selection in the cart menu (chose the i'th item) so now we have to load
-//the cartridge.
+void doUpDir() {
+  if (strcmp(menuDir, "/roms") != 0)
+    doChangeDir("..");
+}
+
+void doChangeDir(char* dirname) {
+	xprintf("Found directory: %s\n", dirname);
+	if (strcmp(dirname,"..") == 0) {
+		char* ptr = strrchr(menuDir,'/');
+		if (ptr != NULL) {
+			*ptr = '\0';
+		}
+	} else {
+		xsprintf(menuDir, "%s/%s", menuDir, dirname);
+	}
+
+	romData=menuData;
+	loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
+	menuData[menuIndex]=0; //reset selection
+
+	xprintf("Done listing for : %s\n", menuDir);
+}
+
+//User has made a selection in the cart menu (chose the i'th item) so now we have to load the cartridge.
 void doChangeRom(char* basedir, int i) {
 	char buff[300];
 
@@ -132,21 +154,7 @@ void doChangeRom(char* basedir, int i) {
 	file_entry f = c_and_l.listing.f_entry[i];
 
 	if (f.is_dir) {
-		xprintf("Found directory: %s\n", f.fname);
-		if (strcmp(f.fname,"..") == 0) {
-			char* ptr = strrchr(menuDir,'/');
-			if (ptr != NULL) {
-				*ptr = '\0';
-			}
-		} else {
-			xsprintf(menuDir, "%s/%s", menuDir, f.fname);
-		}
-
-		romData=menuData;
-		loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
-		menuData[menuIndex]=0; //save selection so we can go back there after reset
-
-		xprintf("Done listing for : %s\n", menuDir);
+		doChangeDir(f.fname);
 	} else {													/* It is a file. */
 		xprintf("Adding filename [%s] to path\n", f.fname);
 		xsprintf(buff, "%s/%s", basedir, f.fname);
@@ -162,6 +170,7 @@ void doHandleEvent(int data) {
 	// xprintf("Event: %d. arg1: 0x%x\n", data, (int)parmRam[254]);
 	if (data==1) doChangeRom(menuDir, (int)parmRam[254]);
 	if (data==2) loadStreamData(0x4000, 1024+512);
+	if (data==3) doUpDir();
 	// xprintf("Event handled. Resuming.\n");
 }
 

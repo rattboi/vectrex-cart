@@ -20,6 +20,11 @@
 MENU_POS_X          equ      #-110
 MENU_POS_Y          equ      #50
 MENU_ITEMS_MAX      equ      #4
+
+PAGE_POS_X          equ      #-10
+PAGE_POS_Y          equ      #-70
+BUTTONS_POS_X       equ      #-120
+BUTTONS_POS_Y       equ      #-80
 ;***************************************************************************
 ; USER RAM SECTION ($C880-$CBEA)
 ;***************************************************************************
@@ -31,6 +36,8 @@ waitjs              equ      $c883
 lastpage            equ      $c884
 header_scale        equ      $c885
 header_dir          equ      $c886
+page_label          equ      $c887
+page_label_end      equ      $c888
 ;***************************************************************************
 ; VECTREX RAM SECTION ($C800-$CFFF)
 ;***************************************************************************
@@ -59,14 +66,7 @@ rpccopyloop
                     bne      rpccopyloop
 init_vars
 ; init menu var
-                    lda      lastselcart
-                    anda     #3
-                    sta      cursor
-                    lda      lastselcart
-                    lsra
-                    lsra
-                    lsra
-                    sta      page
+                    jsr      init_page_cursor
 ; init vextreme logo vars
                     lda      #1
                     sta      header_dir
@@ -140,7 +140,7 @@ hlend
                                                           ;Yep -> bail out
                     lda      #1
                     sta      lastpage
-                    bra      gfxend
+                    bra      menuend
 
 showtitle
                     ldb      #MENU_POS_X                  ; menu x offset from 0,0
@@ -152,6 +152,22 @@ showtitle
                     bne      nameloop
                     lda      #0
                     sta      lastpage
+menuend
+                    jsr      Intensity_5F
+;                    ldb      #$80
+;                    stb      page_label_end
+;                    ldb      page
+;                    addb     #'1'
+;                    stb      page_label
+;                    ldu      #page_label
+;                    lda      #PAGE_POS_Y
+;                    ldb      #PAGE_POS_X
+;                    jsr      sync_Print_Str_d             ;print string
+
+                    ldu      #buttons_label
+                    lda      #BUTTONS_POS_Y
+                    ldb      #BUTTONS_POS_X
+                    jsr      sync_Print_Str_d             ;print string
 gfxend
 ;End of gfx routines.
 ;Input handling
@@ -160,6 +176,87 @@ gfxend
                     jsr      Joy_Digital
 ;X handling
                     lda      Vec_Joy_1_X
+                    jsr      handlepage
+;Y handling
+                    lda      Vec_Joy_1_Y
+                    beq      skipymove
+                    bpl      yneg
+                    inc      cursor
+                    bra      ymovedone
+yneg
+                    dec      cursor
+ymovedone
+                    lda      #MENU_ITEMS_MAX              ; index of menu items (0 to N-1)
+                    deca                                  ; |
+                    anda     cursor
+                    sta      cursor
+                    ldb      1
+                    stb      waitjs
+skipymove
+                    jsr      Read_Btns
+                    anda     #$0F                         ; ignore joy2
+                    lsla                                  ; convert to 2-byte index
+                    ldu      #button_routines
+                    leau     a,u                          ;fetch addr of string, page
+                    pulu     pc
+
+button_routines
+                    fdb      nobuttons                    ; 0x00 no buttons
+                    fdb      dirup                        ; 0x01 b1
+                    fdb      pageleft                     ; 0x02 b2
+                    fdb      nobuttons                    ; 0x03 b2+b1
+                    fdb      pageright                    ; 0x04 b3
+                    fdb      nobuttons                    ; 0x05 b3+b1
+                    fdb      nobuttons                    ; 0x06 b3+b2
+                    fdb      nobuttons                    ; 0x07 b3+b2+b1
+                    fdb      startgame                    ; 0x08 b4
+                    fdb      nobuttons                    ; 0x09 b4+b1
+                    fdb      nobuttons                    ; 0x0A b4+b2
+                    fdb      nobuttons                    ; 0x0B b4+b2+b1
+                    fdb      nobuttons                    ; 0x0C b4+b3
+                    fdb      nobuttons                    ; 0x0D b4+b3+b1
+                    fdb      nobuttons                    ; 0x0E b4+b3+b2
+                    fdb      nobuttons                    ; 0x0F b4+b3+b2+b1
+
+nobuttons
+                    jmp      loop
+
+pageleft
+                    lda      #-1
+                    bra      dopage
+pageright
+                    lda      #1
+dopage
+                    jsr      handlepage
+                    jmp      loop
+
+startgame                                                          ;Start the game.
+                    lda      page                         ;Calculate the number of the ROM
+                    lsla                                  ; (page * 4) + cursor
+                    lsla                                  ;  |
+                    adda     cursor                       ;  |
+                    sta      $7ffe                        ;Store in special cart location
+                    lda      #1                           ;rpc call to load a rom
+                    jmp      rpcfn                        ;Call
+
+dirup
+                    lda      #3                           ;rpc call to change up a directory
+                    jmp      rpcfn                        ;Call
+
+;Js has been touched. Ignore input until it returns.
+;(ToDo: input repeating?)
+dowaitjszero
+                    jsr      Joy_Digital
+                    lda      Vec_Joy_1_X
+                    bne      nozero
+                    lda      Vec_Joy_1_Y
+                    bne      nozero
+                    sta      waitjs
+nozero
+                    jmp      loop
+
+handlepage
+                    pshs     a,b
                     beq      skipxmove
                     bpl      xneg
                     lda      page
@@ -175,50 +272,19 @@ xmovedone
                     ldb      1
                     stb      waitjs
 skipxmove
-;Y handling
-                    lda      Vec_Joy_1_Y
-                    beq      skipymove
-                    bpl      yneg
-                    inc      cursor
-                    bra      ymovedone
+                    puls     a,b
+                    rts
 
-yneg
-                    dec      cursor
-ymovedone
-                    lda      #MENU_ITEMS_MAX              ; index of menu items (0 to N-1)
-                    deca                                  ; |
-                    anda     cursor
+init_page_cursor
+                    lda      lastselcart
+                    anda     #3
                     sta      cursor
-                    ldb      1
-                    stb      waitjs
-skipymove
-                    jsr      Read_Btns
-                    cmpa     #0
-                    beq      nobuttons
-                                                          ;Start the game.
-                    lda      page                         ;Calculate the number of the ROM
-                    lsla                                  ; (page * 4) + cursor
-                    lsla                                  ;  |
-                    adda     cursor                       ;  |
-                    sta      $7ffe                        ;Store in special cart location
-                    lda      #1                           ;rpc call to load a rom
-                    jmp      rpcfn                        ;Call
-
-                                                          ;We shouldn't return here.
-nobuttons
-                    jmp      loop
-
-;Js has been touched. Ignore input until it returns.
-;(ToDo: input repeating?)
-dowaitjszero
-                    jsr      Joy_Digital
-                    lda      Vec_Joy_1_X
-                    bne      nozero
-                    lda      Vec_Joy_1_Y
-                    bne      nozero
-                    sta      waitjs
-nozero
-                    jmp      loop
+                    lda      lastselcart
+                    lsra
+                    lsra
+                    lsra
+                    sta      page
+                    rts
 
 ;Rpc function. Because this makes the cart unavailable, this
 ;will copied to SRAM. Call as rpcfn.
@@ -240,6 +306,7 @@ headerloop
                     bne      newrom
                     cmpx     #$1A
                     bne      headerloop
+                    jsr      init_page_cursor
                     jmp      loop ;start address
 newrom
                     ldu      #$f000
@@ -282,6 +349,9 @@ vextreme_tune1
                     fcb      FS5,8
                     fcb      RST,8
                     fcb      0,$80 ; $80 is end marker for music, frequency is not played so 0
+
+buttons_label
+                    fcb      "(BK) (<) (>) (SEL)",$80               ; some game information ending with $80
 ;***************************************************************************
 ; MENU SECTION
 ;***************************************************************************
