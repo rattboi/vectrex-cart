@@ -183,7 +183,24 @@ static FATFS FatFs;
 int main(void) {
 	void (*runptr)(void)=romemu;
 
-	rcc_clock_setup_hse_3v3(&hse_8mhz_3v3[CLOCK_3V3_120MHZ]);
+  const struct rcc_clock_scale hse_8mhz_3v3_120MHz = { /* 120MHz */
+     .pllm = 8,
+     .plln = 240,
+     .pllp = 2,
+     .pllq = 5,
+     .pllr = 0,
+     .pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
+     .hpre = RCC_CFGR_HPRE_DIV_NONE,
+     .ppre1 = RCC_CFGR_PPRE_DIV_4,
+     .ppre2 = RCC_CFGR_PPRE_DIV_2,
+     .voltage_scale = PWR_SCALE1,
+     .flash_config = FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_LATENCY_3WS,
+     .ahb_frequency  = 120000000,
+     .apb1_frequency = 30000000,
+     .apb2_frequency = 60000000,
+  };
+
+  rcc_clock_setup_pll(&hse_8mhz_3v3_120MHz);
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOC);
