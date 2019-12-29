@@ -279,11 +279,10 @@ init_page_cursor
                     lda      lastselcart
                     anda     #3
                     sta      cursor
-                    lda      lastselcart
-                    lsra
-                    lsra
-                    lsra
-                    sta      page
+                    lda      lastselcart                  ; (lastselcart / 4) = page
+                    lsra                                  ;  |
+                    lsra                                  ;  |
+                    sta      page                         ;  |
                     rts
 
 ;Rpc function. Because this makes the cart unavailable, this
