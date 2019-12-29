@@ -11,7 +11,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-arm-embedded
 WORKDIR /build
 RUN git clone https://github.com/libopencm3/libopencm3.git \
     && cd libopencm3 \
-    && git checkout 9b8d44e8a3cc52d83aba3b5547c2bb56cdbd8b63 \
+    && git checkout f7a952c41a815572622f137881af6160730a3768 \
     && make
 
 WORKDIR /build/veccart
