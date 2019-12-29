@@ -116,6 +116,7 @@ nameloop
 nohighlight
                     jsr      Intensity_5F
 hlend
+; load address of next string title in reg U based on (page * 4) + curpos
                     ldu      #filedata                    ;data of pointer to filenames
                     ldb      page                         ;load page no
                     lda      #0
@@ -129,20 +130,21 @@ hlend
                     rola
                     leau     d,u                          ;fetch addr of string, page
                     ldu      a,u                          ;add pos
+; adjust menu Y position in reg A
                     lda      curpos
                     nega                                  ;because y decreases downward
                     lsla                                  ; *8
                     lsla                                  ; |
                     lsla                                  ; | (fine tunes Y line spacing, add more lsla's to inc.)
                     adda     #MENU_POS_Y                  ; menu y offset from 0,0
-                    cmpu     #0                           ;see if we're at the end of the list
-                    bne      showtitle
-                                                          ;Yep -> bail out
-                    lda      #1
-                    sta      lastpage
+; check if we hit the end of the list within this page
+                    cmpu     #0                           ; compare reg U to null pointer, which signifies end of menu data
+                    bne      showtitle                    ; if not the end, showtitle
+                    lda      #1                           ; else bail out and set lastpage = 1 to avoid lengthy test later
+                    sta      lastpage                     ;  |
                     bra      menuend
-
 showtitle
+
                     ldb      #MENU_POS_X                  ; menu x offset from 0,0
                     jsr      sync_Print_Str_d             ;print string
                     lda      curpos
@@ -265,13 +267,36 @@ handlepage
                     bra      xmovedone
 
 xneg
-                    lda      lastpage
-                    bne      xmovedone
+                    lda      lastpage                     ; test if lastpage is already set
+                    bne      xmovedone                    ; skip following test if so
+; test for last page
+                    ldu      #filedata                    ; data of pointer to filenames
+                    ldb      page                         ; load page no
+                    incb                                  ; temporarily move forward one page
+                    lda      #0
+                    lslb                                  ; *4
+                    rola                                  ; |
+                    lslb                                  ; |
+                    rola                                  ; |
+                                                          ; first curpos (no addb curpos)
+                    adca     #0
+                    lslb                                  ; because the addresses are 2 bytes
+                    rola
+                    leau     d,u                          ; fetch addr of string, page
+                    ldu      a,u                          ; add pos
+                                                          ;
+                    cmpu     #0                           ; see if we're at the end of the list
+                    bne      donextpage                   ; if not, do next page
+                    lda      #1                           ; else set lastpage = 1
+                    sta      lastpage                     ;  |
+                    bra      xmovedone
+donextpage
                     inc      page
 xmovedone
                     ldb      1
                     stb      waitjs
 skipxmove
+
                     puls     a,b
                     rts
 
