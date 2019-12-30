@@ -34,10 +34,12 @@ cursor              equ      $c881
 curpos              equ      $c882
 waitjs              equ      $c883
 lastpage            equ      $c884
-header_scale        equ      $c885
-header_dir          equ      $c886
+logo_scale          equ      $c885
+logo_dir            equ      $c886
 page_label          equ      $c887
 page_label_end      equ      $c888
+calibrationValue    equ      $c889
+gameScale           equ      $c890
 ;***************************************************************************
 ; VECTREX RAM SECTION ($C800-$CFFF)
 ;***************************************************************************
@@ -69,28 +71,37 @@ init_vars
                     jsr      init_page_cursor
 ; init vextreme logo vars
                     lda      #1
-                    sta      header_dir
-                    lda      #$5
-                    sta      header_scale
+                    sta      logo_dir
+                    lda      #20
+                    sta      logo_scale
+                    lda      #1
+                    sta      calibrationValue
+                    lda      #1
+                    sta      gameScale
 loop
 ; Recal video stuff
                     jsr      Wait_Recal
                     jsr      Intensity_5F
 ; display vextreme logo
-                    ldu      #vextreme_logo               ; address of list
-                    lda      #$7f                         ; Text position relative Y
-                    ldb      #$0                          ; Text position relative X
-                    tfr      d,x                          ; in x position of list
-                    lda      #80                          ; scale positioning
-                    ldb      header_scale                 ; scale move in list
-                    jsr      draw_synced_list
-; header zoom in animation
-                    lda      header_scale
-                    cmpa     #$20
-                    beq      exitHeaderZoom
+drawLogo
+                    ldx      #_SM_vextreme_logo
+nextLogoPart
+                    lda      logo_scale
+                    sta      VIA_t1_cnt_lo
+                    lda      #$CE                          ;Blank low, zero high?
+                    sta      <VIA_cntl
+                    ldu      ,x++
+                    beq      logoDone
+                    jsr      drawSmart
+                    bra      nextLogoPart
+logoDone
+; logo zoom in animation
+                    lda      logo_scale
+                    cmpa     #34
+                    beq      logoZoomDone
                     inca
-                    sta      header_scale
-exitHeaderZoom
+                    sta      logo_scale
+logoZoomDone
 ; menu font settings
                     ldd      #$f160
                     std      Vec_Text_HW
@@ -343,12 +354,11 @@ rpcfndatend
 ; SUBROUTINE SECTION
 ;***************************************************************************
                     include  "printStringSync.asm"
-                    include  "drawSyncList.asm"
 ;***************************************************************************
 ; DATA SECTION
 ;***************************************************************************
                     include  "font_5_fixed.asm"
-                    include  "vextremeLogo.asm"
+                    include  "vextremeLogoSM.asm"
 ; VEXTREME Tune Notes
 CS5                 equ      $1E
 F5                  equ      $22
