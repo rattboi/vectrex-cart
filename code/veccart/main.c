@@ -40,7 +40,11 @@
 
 //Memory for the menu ROM and the running cartridge.
 //We keep both in memory so we can quickly exchange them when a reset has been detected.
-const int menuIndex = 0xfff; // fixed location in multicart.bin
+const int menuFileCount = 0xffe;         // fixed location in multicart.bin
+const int menuIndex = 0xfff;             // fixed location in multicart.bin
+const int menuFilePointers = 0x1000;     // 256 pointers to filenames
+const int menuFileStrings  = 0x1200;     // big chunk of ram to store filename strings
+
 char menuData[8*1024];
 char *romData=menuData;
 unsigned char parmRam[256];
@@ -137,7 +141,7 @@ void doChangeDir(char* dirname) {
 	}
 
 	romData=menuData;
-	loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
+	loadListing(menuDir, &c_and_l.listing, romData, menuFilePointers, menuFileStrings, menuFileCount);
 	menuData[menuIndex]=0; //reset selection
 
 	xprintf("Done listing for : %s\n", menuDir);
@@ -325,7 +329,7 @@ int main(void) {
 		strncpy(menuDir, "/roms", sizeof(menuDir));
 		f_mount(&FatFs, "", 0);
 		loadRom("/multicart.bin");
-		loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
+		loadListing(menuDir, &c_and_l.listing, romData, menuFilePointers, menuFileStrings, menuFileCount);
 
 		//Go emulate a ROM.
 		SYSCFG_MEMRMP=0x3; //mak ram at 0

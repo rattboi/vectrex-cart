@@ -21,25 +21,28 @@ MENU_POS_X          equ      #-110
 MENU_POS_Y          equ      #50
 MENU_ITEMS_MAX      equ      #4
 
-PAGE_POS_X          equ      #-10
-PAGE_POS_Y          equ      #-70
 BUTTONS_POS_X       equ      #-120
 BUTTONS_POS_Y       equ      #-80
 ;***************************************************************************
 ; USER RAM SECTION ($C880-$CBEA)
 ;***************************************************************************
-user_ram            equ      $c880
-page                equ      $c880
-cursor              equ      $c881
-curpos              equ      $c882
-waitjs              equ      $c883
-lastpage            equ      $c884
-logo_scale          equ      $c885
-logo_dir            equ      $c886
-page_label          equ      $c887
-page_label_end      equ      $c888
-calibrationValue    equ      $c889
-gameScale           equ      $c890
+										RAM
+                    ORG      $c880
+user_ram
+page                rmb      1
+cursor              rmb      1
+curpos              rmb      1
+waitjs              rmb      1
+lastpage            rmb      1
+logo_scale          rmb      1
+logo_dir            rmb      1
+page_label          rmb      1
+page_label_end      rmb      1
+calibrationValue    rmb      1
+gameScale           rmb      1
+lastpagecursormax   rmb      1
+cursormax           rmb      1
+onlastpage          rmb      1
 ;***************************************************************************
 ; VECTREX RAM SECTION ($C800-$CFFF)
 ;***************************************************************************
@@ -47,6 +50,7 @@ rpcfn               equ      $cb00
 ;***************************************************************************
 ; HEADER SECTION
 ;***************************************************************************
+										CODE
                     org      0
                     fcb      "g GCE 2019", $80            ; 'g' is copyright sign
                     fdb      vextreme_tune1               ; catchy intro music to get stuck in your head
@@ -118,7 +122,7 @@ logoZoomDone
                     lda      #0
                     sta      curpos
 nameloop
-                    ldb      cursor						  ;Handle highlighting of active entry
+                    ldb      cursor              ;Handle highlighting of active entry
                     cmpb     curpos
                     bne      nohighlight
                     jsr      Intensity_7F
@@ -151,8 +155,10 @@ hlend
 ; check if we hit the end of the list within this page
                     cmpu     #0                           ; compare reg U to null pointer, which signifies end of menu data
                     bne      showtitle                    ; if not the end, showtitle
-                    lda      #1                           ; else bail out and set lastpage = 1 to avoid lengthy test later
-                    sta      lastpage                     ;  |
+                    lda      #1                           ; else bail out and set onlastpage = 1 to avoid lengthy test later
+                    sta      onlastpage                   ;  |
+                    lda      lastpagecursormax
+                    sta      cursormax
                     bra      menuend
 showtitle
 
@@ -164,19 +170,11 @@ showtitle
                     cmpa     #MENU_ITEMS_MAX              ; number of menu items
                     bne      nameloop
                     lda      #0
-                    sta      lastpage
+                    sta      onlastpage
+                    lda      #MENU_ITEMS_MAX
+                    sta      cursormax
 menuend
                     jsr      Intensity_5F
-;                    ldb      #$80
-;                    stb      page_label_end
-;                    ldb      page
-;                    addb     #'1'
-;                    stb      page_label
-;                    ldu      #page_label
-;                    lda      #PAGE_POS_Y
-;                    ldb      #PAGE_POS_X
-;                    jsr      sync_Print_Str_d             ;print string
-
                     ldu      #buttons_label
                     lda      #BUTTONS_POS_Y
                     ldb      #BUTTONS_POS_X
@@ -193,18 +191,27 @@ gfxend
 ;Y handling
                     lda      Vec_Joy_1_Y
                     beq      skipymove
-                    bpl      yneg
-                    inc      cursor
+                    bpl      ymoveup
+ymovedown
+                    lda      cursor
+                    inca      
+                    cmpa     cursormax
+                    bne      ymovedone
+                    lda      #0
                     bra      ymovedone
-yneg
-                    dec      cursor
-ymovedone
-                    lda      #MENU_ITEMS_MAX              ; index of menu items (0 to N-1)
-                    deca                                  ; |
-                    anda     cursor
+ymoveup
+                    lda      cursor
+                    beq      ymoveupwrap
+                    deca
+                    bra      ymovedone
+ymoveupwrap
+                    lda      cursormax
+                    deca
+ymovedone       
                     sta      cursor
                     ldb      1
                     stb      waitjs
+                    bra      skipymove
 skipymove
                     jsr      Read_Btns
                     anda     #$0F                         ; ignore joy2
@@ -212,6 +219,18 @@ skipymove
                     ldu      #button_routines
                     leau     a,u                          ;fetch addr of string, page
                     pulu     pc
+
+;Js has been touched. Ignore input until it returns.
+;(ToDo: input repeating?)
+dowaitjszero
+                    jsr      Joy_Digital
+                    lda      Vec_Joy_1_X
+                    bne      nozero
+                    lda      Vec_Joy_1_Y
+                    bne      nozero
+                    sta      waitjs
+nozero
+                    jmp      loop
 
 button_routines
                     fdb      nobuttons                    ; 0x00 no buttons
@@ -256,62 +275,43 @@ dirup
                     lda      #3                           ;rpc call to change up a directory
                     jmp      rpcfn                        ;Call
 
-;Js has been touched. Ignore input until it returns.
-;(ToDo: input repeating?)
-dowaitjszero
-                    jsr      Joy_Digital
-                    lda      Vec_Joy_1_X
-                    bne      nozero
-                    lda      Vec_Joy_1_Y
-                    bne      nozero
-                    sta      waitjs
-nozero
-                    jmp      loop
 
+; Handle changing pages left/right
 handlepage
-                    pshs     a,b
                     beq      skipxmove
-                    bpl      xneg
+                    bpl      xpos
                     lda      page
                     beq      xmovedone
                     dec      page
                     bra      xmovedone
-
-xneg
-                    lda      lastpage                     ; test if lastpage is already set
-                    bne      xmovedone                    ; skip following test if so
-; test for last page
-                    ldu      #filedata                    ; data of pointer to filenames
-                    ldb      page                         ; load page no
-                    incb                                  ; temporarily move forward one page
-                    lda      #0
-                    lslb                                  ; *4
-                    rola                                  ; |
-                    lslb                                  ; |
-                    rola                                  ; |
-                                                          ; first curpos (no addb curpos)
-                    adca     #0
-                    lslb                                  ; because the addresses are 2 bytes
-                    rola
-                    leau     d,u                          ; fetch addr of string, page
-                    ldu      a,u                          ; add pos
-                                                          ;
-                    cmpu     #0                           ; see if we're at the end of the list
+xpos
+										lda      onlastpage
+										bne      xmovedone
+                    lda      page
+										cmpa     lastpage
                     bne      donextpage                   ; if not, do next page
-                    lda      #1                           ; else set lastpage = 1
-                    sta      lastpage                     ;  |
                     bra      xmovedone
 donextpage
                     inc      page
+										lda      page
+                    cmpa     lastpage
+                    bne      xmovedone
+                    lda      #1                           ; else set onlastpage = 1
+                    sta      onlastpage                   ;  |
+                    lda      lastpagecursormax
+                    sta      cursormax
+										deca
+                    cmpa     cursor
+                    bpl      xmovedone
+                    sta      cursor
 xmovedone
                     ldb      1
                     stb      waitjs
 skipxmove
-
-                    puls     a,b
                     rts
 
 init_page_cursor
+                    ; set up last selected cart vars
                     lda      lastselcart
                     anda     #3
                     sta      cursor
@@ -319,6 +319,15 @@ init_page_cursor
                     lsra                                  ;  |
                     lsra                                  ;  |
                     sta      page                         ;  |
+                    ; pre-compute last page / num items on last page
+                    lda      listingcount
+                    inca
+                    anda     #3
+                    sta      lastpagecursormax
+                    lda      listingcount                 ; (listingcount / 4) = lastpage
+                    lsra                                  ;  |
+                    lsra                                  ;  |
+                    sta      lastpage                     ;  |
                     rts
 
 ;Rpc function. Because this makes the cart unavailable, this
@@ -391,6 +400,9 @@ buttons_label
 ;***************************************************************************
 ;Test multicart list data. This gets overwritten by the firmware running in the
 ;STM with actual cartridge data.
+                    org      $ffe
+listingcount                    
+                    fcb      0
                     org      $fff
 lastselcart
                     fcb      0
