@@ -55,6 +55,17 @@
 - Added a special intro jingle that's been stuck in my head (enjoy!)
 - temp increase time to reset to allow Fortress of Narzod to play
 - Extract menu code from main code and optimize menu code
+- Add basic menu labels/function-per-button support #4
+    - At the bottom of the menu 1 = (BACK), 2 = PAGE LEFT, 3 = PAGE RIGHT, 4 = SELECT
+- Ignore lst files #5
+- adds ISSUE_TEMPLATE.md and PULL_REQUEST_TEMPLATE.md for contributions from the community
+- Update to latest (pinned) libopencm3 #6
+- Fixed lastselectcart on wrong game after reset
+- Fixed do not inc page if next one will be blank issue
+- Converts logo from sync to smart list, thanks Malban!
+    - Note: Had to replace NOP MACROs with JSR of approx equivalent value
+    - Converted fcb hi(label),lo(label) into fdb label
+    - Reduces cycle count by 8 - 10k!
 
 ## v0.1
 
