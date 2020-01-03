@@ -53,6 +53,7 @@ union cart_and_listing {
 };
 
 union cart_and_listing c_and_l;
+char *cartData=c_and_l.cartData;
 
 /*
 //Pinning:

@@ -74,7 +74,7 @@ write:
 	lsr r6,#16				//Nuke bottom 16 bits...
 	lsl r6,#16				//...by shifting them out and zeroes back.
 	str r6,[r3, 0]			//Set bottom 8 pins of gpioa to input
-	ldr r0,[r1, 0x10]				//load addr word from gpioc
+	ldr r0,[r1, 0x10]				//load addr word f/om gpioc
 	ubfx r0,r0,#0,#15		//and with 0x7fff
 
 	//We need to delay a while because the written data is only stable
@@ -96,13 +96,23 @@ waitdataloop:
 	cmp r0,#0
 	beq outserial
 
-	//See if it is a write to xxFF
+	//See if it is a write to 7Fxx
+	lsr r9,r0,#8
+	cmp r9,#0x7f
+	bne writecart
+
 	and r0,#0xff
 	cmp r0,#0xff
 	beq handleevent
 	//Nope, it is probably a parameter.
 	ldr r7,=parmRam
 	strb r5,[r7, r0]
+	b wrdone
+
+writecart:
+	ldr r9,=cartData
+	ldr r9,[r9]
+	strb r5,[r9, r0]
 	b wrdone
 
 outserial:
