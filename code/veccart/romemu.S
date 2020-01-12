@@ -15,21 +15,52 @@
 // Main rom emulation code
 
 romemu:
-// DEBUG code to show on serial TX when romemu starts
-//  mov   r0,#'R'
-//  ldr   r1,=0x40011004
-//  str   r0,[r1]
-
     // Initialization
     ldr   r1,=0x40020800        // GPIOC idr offset
-    ldr   r0,=romData           // ROM data array
+    ldr   r0,=romData           // Load ROM data array addr in scratch r0
     ldr   r2,[r0]
     ldr   r3,=0x40020000        // GPIOA bsrr offset
     ldr   r4,=0x40020400        // GPIOB idr offset
+                                // r5 is another scratch register for data
+                                // r6 is another scratch register for data manipulation
+    ldr   r7,=0xfffe            // reset vector constant
     ldr   r8,=0                 // Cycle count since last event
+    ldr   r9,=0x40011004        // USART1_DR for quick addr pointer to Serial Debugging TX
+                                // USART1_SR = 0x40011000
 
 wloop:
-    // Wait for NCART to become active
+    // Check for 6809 reset vector (0xFFFE)
+    // FIXME: Currently on v0.2, we are not reading A15 for MSB, but rather PB6.
+    //        This works though, because PB6 stays HIGH, but it might break down
+    //        with games that toggle PB6.  Not sure what PB6 will do if LOW, when
+    //        the Vectrex is reset.  Change this for v0.3 hardware so A15 is on PC15,
+    //        unless something like Bad Apple or Voom uses PB6, although in testing
+    //        it doesn't seem like it.  Bad Apple can be reset now with this method.
+    ldr   r0,[r1, 0x10]         // Load addr pins
+    cmp   r0,r7                 // Compare to 6809 reset vector
+    bne   clearcount
+
+    add   r8,#1                 // Increase reset vector count
+    cmp   r8,#0x300000          // 8 cycles * 0x170000 is about 100ms (FIXME: use HW timer)
+                                //  so this is more like 300ms (quick tap resets game, long tap back to menu)
+    blo   resetexit             // Keep the increased count, but exit without returning to menu
+
+    // Reset vector detected for more than 100ms, exchange the rom and menu data
+    ldr   r0,=romData
+    ldr   r2,=menuData
+    str   r2,[r0]
+//  mov   r0,#'R'               // Debug code, to know when we've detected RESET
+//  str   r0,[r9]               //  |
+waitreset:
+    ldr   r0,[r1, 0x10]         // Load addr pins
+    cmp   r0,r7                 // Compare to 6809 reset vector
+    beq   waitreset             // Wait for reset vector to clear
+                                // Fall through clear count to reset counter
+clearcount:
+    and   r8,#0
+resetexit:
+
+    // Wait for /CE (A15) to become active
     ldr   r0,[r4, 0x10]
     lsls  r0,#(31-15)           // Shift bit 15 into sign flag
     bmi   wloop                 // Bit 15 set? Loop if so
@@ -47,30 +78,7 @@ wloop:
     orr.w r5,r5,#0xff0000       // Set shit
     str   r5,[r3, 0x18]         // Output
 
-//  b     dbg
-
-    add   r8,#1                 // Increase read count
-
-    cmp   r0,#4                 // Is this a read of the copyright?
-    bne   wloop
-
-    // According to my emu, the ROM reads a random header about 19296 times. Seems like
-    // Vectrexes with a GCE logo read it more often than my MB-branded one... hope this
-    //   number holds up then.
-    // Note: this was resetting prematurely on GCE vectri with #0x10000 to 0x40000.
-    //       Later doubled from 0x40000 to 0x80000 due to long tune on Fortress of Narzod
-    cmp   r8,#0x80000
-    blo   wloop
-
-    // Header read when the game has been running for a while. Hmm, cart probably is reset...
-    // Exchange the rom and menu data
-    ldr   r0,=romData
-    ldr   r2,=menuData
-    str   r2,[r0]
-
-    mov   r8,#0
     b     wloop
-
 
 write:
     // The Vec writes to the cart. Seemingly, we need to do something
