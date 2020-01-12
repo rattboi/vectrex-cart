@@ -108,9 +108,16 @@ waitdataloop:
     // Writes to 0x7fff are the rpc function ID's and kick off the function
     // Writes to 0x0000 will have the data byte immediately forwarded to the serial TX pin for debugging
     // ------------------------------------------------------------------------
-    // Is it a write to addr #$0000 = serial port addr (TODO: avoid addr 0 because Polar Rescue writes there!)
+    // Is it a write to addr #$0000 = serial port addr
+    // TODO: avoid addr 0 because Polar Rescue writes there occassionally
+    //       avoid addr 1 because the Bad Apple player writes there a lot!
     cmp   r0,#0
     beq   outserial
+
+    // See if it is a write to 7Fxx (this is extra insurance against odd Polar Rescue writes)
+    lsr   r9,r0,#8
+    cmp   r9,#0x7f
+    bne   wrdone                // If not, bail out.  TODO: jump to write RAM instead
 
     // See if it is a write to xxFF
     and   r0,#0xff
@@ -120,21 +127,23 @@ waitdataloop:
     // Nope, it is probably a parameter
     ldr   r7,=parmRam
     strb  r5,[r7, r0]
-    b     wrdone
-
-// TODO: Move this sub-routine after wrdone, and let the parameter write fall through to wrdone
-//       to save a few instructions on average and force more cycles to be wasted only when using serial
-outserial:
-    // Output byte to serial port (TX pin on debugging header)
-    ldr   r0,=0x40011004
-    str   r5,[r0]
 
     // Wait until the /wr line goes high again
 wrdone:
     ldr   r0,[r4, 0x10]         // Load inputs
     lsls  r0,#(31-1)            // Shift bit 1 into sign flag
-    bmi   wloop                 // bit 1 set? Return if so
+    bmi   romemu                // bit 1 set? Return if so (was jumping back to wloop, but seemed
+                                //  to not return to menu unless registers re-init with romemu jump
+                                //  when playing Polar Rescue, after sub launches and Write to cart occur)
     b     wrdone                // Wr still is low
+
+// This sub-routine is after wrdone, and lets the parameter write fall through to wrdone
+// to save a few instructions on average and force more cycles to be wasted only when using serial
+outserial:
+    // Output byte to serial port (TX pin on debugging header)
+    ldr   r0,=0x40011004
+    str   r5,[r0]
+    b     wrdone
 
 dbg:
     mov   r1,r5

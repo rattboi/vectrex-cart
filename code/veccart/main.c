@@ -95,11 +95,18 @@ void loadRom(char *fn) {
 		xprintf("Opened file: %s\n", fn);
 	}
 	f_read(&f, romData, 64*1024, &r);
-	if (n>32*1024 && r<=32*1024) {
+	xprintf("Read %d bytes of rom data.\n", r);
+	// It's a game, not the menu
+	if (n > 32*1024 && r <= 32*1024) {
+		// pad with 0x01 for Mine Storm II and Polar Rescue (and any
+		// other buggy game that reads outside its program space)
+		for (x = r; x < 32*1024; x++) {
+			romData[x] = 1;
+		}
+		xprintf("Padded remaining %d bytes of rom data with 0x01\n", x - r);
 		//Duplicate bank to upper bank
 		for (n=0; n<32*1024; n++) romData[n+32*1024]=romData[n];
 	}
-	xprintf("Read %d bytes of rom data.\n", r);
 	f_close(&f);
 }
 
