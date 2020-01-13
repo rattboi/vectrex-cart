@@ -9,5 +9,8 @@ void doChangeDir(char* dirname);
 void doChangeRom(char* basedir, int i);
 void doHandleEvent(int data);
 void doDbgHook(int adr, int data);
+void updateAll();
+void updateOne();
+void updateMulti();
 
 #endif

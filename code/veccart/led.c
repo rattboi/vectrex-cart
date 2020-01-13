@@ -110,6 +110,34 @@ void rainbowCycle(uint8_t wait) {
     }
 }
 
+// Designed to step through a distributed rainbow equally distributed across the LEDs
+void rainbowStep(uint8_t step) {
+    static uint16_t i = 0;
+    static uint8_t w = 0, j = 0;
+    uint8_t *p;
+    j += step;
+    for (i = 0; i < numLEDs; i++) {
+        w = ((i * 256 / numLEDs) + j) & 255;
+        p = &pixels[i * 3];
+        if (w < 85) {
+            p[rOffset] = w * 3;
+            p[gOffset] = 255 - w;
+            p[bOffset] = 0;
+        } else if (w < 170) {
+            w -= 85;
+            p[rOffset] = 255 - w * 3;
+            p[gOffset] = 0;
+            p[bOffset] = w * 3;
+        } else {
+            w -= 170;
+            p[rOffset] = 0;
+            p[gOffset] = w * 3;
+            p[bOffset] = 255 - w * 3;
+        }
+    }
+    ledsUpdate();
+}
+
 // Wipe a color across all LEDs with a particular direction and speed/delay
 void colorWipe(bool dir, uint32_t c, uint8_t wait) {
     int i;
