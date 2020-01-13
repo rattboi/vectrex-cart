@@ -82,24 +82,35 @@ extern void romemu(void);
 void loadRom(char *fn) {
 	FIL f;
 	FRESULT fr;
-	UINT r=0;
+	UINT r = 0;
 	int n;
-	if (romData==c_and_l.cartData)
-		n=sizeof(c_and_l.cartData);
-	else
-		n=sizeof(menuData);
-	fr=f_open(&f, fn, FA_READ);
+	UINT x;
+	if (romData == c_and_l.cartData) {
+		n = sizeof(c_and_l.cartData);
+	} else {
+		n = sizeof(menuData);
+	}
+	fr = f_open(&f, fn, FA_READ);
 	if (fr) {
 		xprintf("Error opening file: %d\n", fr);
 	} else {
 		xprintf("Opened file: %s\n", fn);
 	}
 	f_read(&f, romData, 64*1024, &r);
-	if (n>32*1024 && r<=32*1024) {
-		//Duplicate bank to upper bank
-		for (n=0; n<32*1024; n++) romData[n+32*1024]=romData[n];
-	}
 	xprintf("Read %d bytes of rom data.\n", r);
+	// It's a game, not the menu
+	if (n > 32*1024 && r <= 32*1024) {
+		// pad with 0x01 for Mine Storm II and Polar Rescue (and any
+		// other buggy game that reads outside its program space)
+		for (x = r; x < 32*1024; x++) {
+			romData[x] = 1;
+		}
+		xprintf("Padded remaining %d bytes of rom data with 0x01\n", x - r);
+		//Duplicate bank to upper bank
+		for (n = 0; n < 32*1024; n++) {
+			romData[n+32*1024] = romData[n];
+		}
+	}
 	f_close(&f);
 }
 
@@ -166,11 +177,11 @@ void doChangeRom(char* basedir, int i) {
 
 //Handle an RPC event
 void doHandleEvent(int data) {
-	// xprintf("Event: %d. arg1: 0x%x\n", data, (int)parmRam[254]);
-	if (data==1) doChangeRom(menuDir, (int)parmRam[254]);
-	if (data==2) loadStreamData(0x4000, 1024+512);
-	if (data==3) doUpDir();
-	// xprintf("Event handled. Resuming.\n");
+	xprintf("Handling Event: %d. arg1: 0x%x... ", data, (int)parmRam[254]);
+	if (data == 1) doChangeRom(menuDir, (int)parmRam[254]);
+	if (data == 2) loadStreamData(0x4000, 1024+512);
+	if (data == 3) doUpDir();
+	xprintf("Done\n");
 }
 
 void doDbgHook(int adr, int data) {
@@ -250,7 +261,7 @@ int main(void) {
 	systick_counter_enable();
 	systick_interrupt_enable();
 
-	xprintf("Inited.\n");
+	xprintf("\nInited.\n");
 
 	// Test Addressable LEDs
 	// Addressable RGB LEDs

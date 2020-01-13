@@ -15,21 +15,52 @@
 // Main rom emulation code
 
 romemu:
-// DEBUG code to show on serial TX when romemu starts
-//  mov   r0,#'R'
-//  ldr   r1,=0x40011004
-//  str   r0,[r1]
-
     // Initialization
     ldr   r1,=0x40020800        // GPIOC idr offset
-    ldr   r0,=romData           // ROM data array
+    ldr   r0,=romData           // Load ROM data array addr in scratch r0
     ldr   r2,[r0]
     ldr   r3,=0x40020000        // GPIOA bsrr offset
     ldr   r4,=0x40020400        // GPIOB idr offset
+                                // r5 is another scratch register for data
+                                // r6 is another scratch register for data manipulation
+    ldr   r7,=0xfffe            // reset vector constant
     ldr   r8,=0                 // Cycle count since last event
+    ldr   r9,=0x40011004        // USART1_DR for quick addr pointer to Serial Debugging TX
+                                // USART1_SR = 0x40011000
 
 wloop:
-    // Wait for NCART to become active
+    // Check for 6809 reset vector (0xFFFE)
+    // FIXME: Currently on v0.2, we are not reading A15 for MSB, but rather PB6.
+    //        This works though, because PB6 stays HIGH, but it might break down
+    //        with games that toggle PB6.  Not sure what PB6 will do if LOW, when
+    //        the Vectrex is reset.  Change this for v0.3 hardware so A15 is on PC15,
+    //        unless something like Bad Apple or Voom uses PB6, although in testing
+    //        it doesn't seem like it.  Bad Apple can be reset now with this method.
+    ldr   r0,[r1, 0x10]         // Load addr pins
+    cmp   r0,r7                 // Compare to 6809 reset vector
+    bne   clearcount
+
+    add   r8,#1                 // Increase reset vector count
+    cmp   r8,#0x300000          // 8 cycles * 0x170000 is about 100ms (FIXME: use HW timer)
+                                //  so this is more like 300ms (quick tap resets game, long tap back to menu)
+    blo   resetexit             // Keep the increased count, but exit without returning to menu
+
+    // Reset vector detected for more than 100ms, exchange the rom and menu data
+    ldr   r0,=romData
+    ldr   r2,=menuData
+    str   r2,[r0]
+//  mov   r0,#'R'               // Debug code, to know when we've detected RESET
+//  str   r0,[r9]               //  |
+waitreset:
+    ldr   r0,[r1, 0x10]         // Load addr pins
+    cmp   r0,r7                 // Compare to 6809 reset vector
+    beq   waitreset             // Wait for reset vector to clear
+                                // Fall through clear count to reset counter
+clearcount:
+    and   r8,#0
+resetexit:
+
+    // Wait for /CE (A15) to become active
     ldr   r0,[r4, 0x10]
     lsls  r0,#(31-15)           // Shift bit 15 into sign flag
     bmi   wloop                 // Bit 15 set? Loop if so
@@ -47,30 +78,7 @@ wloop:
     orr.w r5,r5,#0xff0000       // Set shit
     str   r5,[r3, 0x18]         // Output
 
-//  b     dbg
-
-    add   r8,#1                 // Increase read count
-
-    cmp   r0,#4                 // Is this a read of the copyright?
-    bne   wloop
-
-    // According to my emu, the ROM reads a random header about 19296 times. Seems like
-    // Vectrexes with a GCE logo read it more often than my MB-branded one... hope this
-    //   number holds up then.
-    // Note: this was resetting prematurely on GCE vectri with #0x10000 to 0x40000.
-    //       Later doubled from 0x40000 to 0x80000 due to long tune on Fortress of Narzod
-    cmp   r8,#0x80000
-    blo   wloop
-
-    // Header read when the game has been running for a while. Hmm, cart probably is reset...
-    // Exchange the rom and menu data
-    ldr   r0,=romData
-    ldr   r2,=menuData
-    str   r2,[r0]
-
-    mov   r8,#0
     b     wloop
-
 
 write:
     // The Vec writes to the cart. Seemingly, we need to do something
@@ -100,9 +108,16 @@ waitdataloop:
     // Writes to 0x7fff are the rpc function ID's and kick off the function
     // Writes to 0x0000 will have the data byte immediately forwarded to the serial TX pin for debugging
     // ------------------------------------------------------------------------
-    // Is it a write to addr #$0000 = serial port addr (TODO: avoid addr 0 because Polar Rescue writes there!)
+    // Is it a write to addr #$0000 = serial port addr
+    // TODO: avoid addr 0 because Polar Rescue writes there occassionally
+    //       avoid addr 1 because the Bad Apple player writes there a lot!
     cmp   r0,#0
     beq   outserial
+
+    // See if it is a write to 7Fxx (this is extra insurance against odd Polar Rescue writes)
+    lsr   r9,r0,#8
+    cmp   r9,#0x7f
+    bne   wrdone                // If not, bail out.  TODO: jump to write RAM instead
 
     // See if it is a write to xxFF
     and   r0,#0xff
@@ -112,21 +127,23 @@ waitdataloop:
     // Nope, it is probably a parameter
     ldr   r7,=parmRam
     strb  r5,[r7, r0]
-    b     wrdone
-
-// TODO: Move this sub-routine after wrdone, and let the parameter write fall through to wrdone
-//       to save a few instructions on average and force more cycles to be wasted only when using serial
-outserial:
-    // Output byte to serial port (TX pin on debugging header)
-    ldr   r0,=0x40011004
-    str   r5,[r0]
 
     // Wait until the /wr line goes high again
 wrdone:
     ldr   r0,[r4, 0x10]         // Load inputs
     lsls  r0,#(31-1)            // Shift bit 1 into sign flag
-    bmi   wloop                 // bit 1 set? Return if so
+    bmi   romemu                // bit 1 set? Return if so (was jumping back to wloop, but seemed
+                                //  to not return to menu unless registers re-init with romemu jump
+                                //  when playing Polar Rescue, after sub launches and Write to cart occur)
     b     wrdone                // Wr still is low
+
+// This sub-routine is after wrdone, and lets the parameter write fall through to wrdone
+// to save a few instructions on average and force more cycles to be wasted only when using serial
+outserial:
+    // Output byte to serial port (TX pin on debugging header)
+    ldr   r0,=0x40011004
+    str   r5,[r0]
+    b     wrdone
 
 dbg:
     mov   r1,r5
