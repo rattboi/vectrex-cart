@@ -97,7 +97,9 @@ sound_flag_2        equ      sound_flag_1+1
 sound_flag_3        equ      sound_flag_2+1 
 sound_explode_flag_1  equ    sound_flag_3+1 
 sound_explode_flag_2  equ    sound_explode_flag_1+1 
-sound_explode_flag_3  equ    sound_explode_flag_2+1 
+sound_explode_flag_3  equ    sound_explode_flag_2+1
+led_color           equ      sound_explode_flag_3+1
+led_true            equ      led_color+1
 ;when I used 3x128bytes for particles I must of ran out of mem and got unexpected bytes set wrong
 ;for the emitter, note there are only 874 bytes of safe ram available to the user!!
 ;Constants in rom
@@ -105,6 +107,11 @@ BIRDVCOUNT          equ      8                    ; how often we update bird vel
 LOGOX               equ      0                    ; position of logo 
 LOGOY               equ      70                   ;add # before like #LOGOY when using to get 
 LOGOSCALE           equ      66 
+;***************************************************************************
+; USER RAM SECTION ($C880-$CBEA)
+;***************************************************************************
+rpcfn               equ      $cb00
+
                     org      0 
 ; *** Init block
                     fcb      $67,$20 
@@ -117,7 +124,21 @@ LOGOSCALE           equ      66
                     fcb      $80,$0 
 ; *** Start Code
 ;boot initialise, anything we need to do only when loading the game for the first time
-boot_init: 
+boot_init:
+;***************************************************************************
+; RPC COPY START
+;***************************************************************************
+rpccopystart
+                    ldx      #rpcfndat
+                    ldy      #rpcfn
+rpccopyloop
+                    lda      ,x+
+                    sta      ,y+
+                    cmpx     #rpcfndatend
+                    bne      rpccopyloop
+;***************************************************************************
+; RPC COPY END
+;***************************************************************************
 ;setup highscores
                     clra     
                     sta      hiscr_byte1          ;ascii version of the high score 
@@ -160,6 +181,8 @@ init:
                     sta      scr_offset 
                                                   ;//all   set to 0 
                     clra                          ;Set a to 0 (good habit to clr as its faster) 
+                    sta      led_color
+                    sta      led_true
                     sta      level_shift 
                     sta      flap_snd_count       ;set counter for sound length to 0 
                     sta      point_snd_count      ;count to play two sounds for the points 
@@ -244,6 +267,33 @@ startscreen:
                                                   ;if      button pressed carry on--> 
 game_loop: 
 ;	jsr		calib
+
+;***************************************************************************
+; LED UPDATE FUNCTION START
+;***************************************************************************
+                    lda      led_true             ; check for LED update
+                    cmpa     #1
+                    bne      led_exit
+
+                    clra                          ; change LED color
+                    sta      led_true
+                    lda      led_color
+                    cmpa     #8
+                    bne      led_next
+
+                    clra                          ; else reset and inc to 1
+led_next
+                    inca
+                    sta      led_color
+
+                    sta      $7ffe                ; Store in special cart location
+                    lda      #4                   ; rpc call to update LED
+                    jmp      rpcfn                ; Call
+led_exit
+;***************************************************************************
+; LED UPDATE FUNCTION END
+;***************************************************************************
+new_game_loop:
                     jsr      Wait_Recal           ; BIOS recalibration 
                     jsr      scroll 
                     jsr      check_flapsound      ;check if sound has stopped playing or not 
@@ -360,6 +410,8 @@ tile_has_height:
                     lda      scr_offset           ;load the scroll offset 
                     cmpa     #25                  ;are we at this point in the scroll? 
                     bne      check_score_rt       ;if not just return 
+                    lda      #1                   ; Update LED
+                    sta      led_true             ;  |
                     jsr      play_pointsound      ;otherwise play sound for score 
 ;score routine goes here ------ simple 3byte not packed
                     lda      scr_byte1            ;load byte storing single figures 
@@ -1262,4 +1314,23 @@ musa                                              ;        Start music that play
                     fdb      $fee8 
                     fdb      $fbe6 
                     fcb      $0,$80 
-                    fcb      $0,$80 
+                    fcb      $0,$80
+;***************************************************************************
+; RPC FUNCTION START
+;***************************************************************************
+; Rpc function. Because this makes the cart unavailable, this
+; will copied to SRAM. Call as rpcfn.
+rpcfndat
+                    sta      $7fff
+rpcwaitloop
+                    lda      $0
+                    cmpa     # 'g'
+                    bne      rpcwaitloop
+                    lda      $1
+                    cmpa     # ' '
+                    bne      rpcwaitloop
+                    jmp      new_game_loop     ; original game start address
+rpcfndatend
+;***************************************************************************
+; RPC FUNCTION END
+;***************************************************************************
