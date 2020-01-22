@@ -175,12 +175,44 @@ void doChangeRom(char* basedir, int i) {
 	}
 }
 
-//Handle an RPC event
+void updateAll() {
+	uint16_t i = ledsNumPixels();
+	while (i > 0) {                     // color index
+		ledsSetPixelColor(--i, colors[(int)parmRam[254]]);
+	}
+	ledsUpdate();
+}
+
+void updateOne() {
+	//                led index        , color index
+	ledsSetPixelColor((int)parmRam[253], colors[(int)parmRam[254]]);
+	ledsUpdate();
+}
+
+void updateMulti() {
+	// uint16_t i = ledsNumPixels();
+	for (uint16_t i = 0; i < ledsNumPixels(); i++) {
+		// xprintf("LED%d = %d\n", i, (int)parmRam[0xf0 + i]);
+		ledsSetPixelColor(i, colors[(int)parmRam[0xf0 + i]]); // 0xf0 = LED0, 0xf9 = LED9
+	}
+	// xprintf("\n");
+	ledsUpdate();
+}
+
+// Handle an RPC event
 void doHandleEvent(int data) {
 	xprintf("Handling Event: %d. arg1: 0x%x... ", data, (int)parmRam[254]);
-	if (data == 1) doChangeRom(menuDir, (int)parmRam[254]);
-	if (data == 2) loadStreamData(0x4000, 1024+512);
-	if (data == 3) doUpDir();
+	switch (data) {
+		default:
+		case 0: break;
+		case 1: doChangeRom(menuDir, (int)parmRam[254]); break;
+		case 2: loadStreamData(0x4000, 1024+512); break;
+		case 3: doUpDir(); break;
+		case 4: updateAll(); break;
+		case 5: rainbowStep((int)parmRam[254]); break;
+		case 6: updateOne(); break;
+		case 7: updateMulti(); break;
+	}
 	xprintf("Done\n");
 }
 
@@ -193,22 +225,22 @@ static FATFS FatFs;
 int main(void) {
 	void (*runptr)(void)=romemu;
 
-  const struct rcc_clock_scale hse_8mhz_3v3_120MHz = { /* 120MHz */
-     .pllm = 8,
-     .plln = 240,
-     .pllp = 2,
-     .pllq = 5,
-     .pllr = 0,
-     .pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
-     .hpre = RCC_CFGR_HPRE_DIV_NONE,
-     .ppre1 = RCC_CFGR_PPRE_DIV_4,
-     .ppre2 = RCC_CFGR_PPRE_DIV_2,
-     .voltage_scale = PWR_SCALE1,
-     .flash_config = FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_LATENCY_3WS,
-     .ahb_frequency  = 120000000,
-     .apb1_frequency = 30000000,
-     .apb2_frequency = 60000000,
-  };
+	const struct rcc_clock_scale hse_8mhz_3v3_120MHz = { /* 120MHz */
+		.pllm = 8,
+		.plln = 240,
+		.pllp = 2,
+		.pllq = 5,
+		.pllr = 0,
+		.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
+		.hpre = RCC_CFGR_HPRE_DIV_NONE,
+		.ppre1 = RCC_CFGR_PPRE_DIV_4,
+		.ppre2 = RCC_CFGR_PPRE_DIV_2,
+		.voltage_scale = PWR_SCALE1,
+		.flash_config = FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_LATENCY_3WS,
+		.ahb_frequency  = 120000000,
+		.apb1_frequency = 30000000,
+		.apb2_frequency = 60000000,
+	};
 
 	rcc_clock_setup_pll(&hse_8mhz_3v3_120MHz);
 	rcc_periph_clock_enable(RCC_GPIOA);
@@ -263,26 +295,13 @@ int main(void) {
 
 	xprintf("\nInited.\n");
 
-	// Test Addressable LEDs
-	// Addressable RGB LEDs
-	uint32_t colors[] = {
-		0,		  // off
-		0xFF0000, // red
-		0xFF9900, // orange
-		0xFFFF00, // yellow
-		0x00FF00, // green
-		0x00FFFF, // cyan
-		0x0000FF, // blue
-		0x7700FF, // pink
-		0xFF00FF, // magenta
-		0xFFFFFF  // white
-	};
 	ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
 	ledsSetBrightness(150); // be careful not to set this too high when using white, those LEDs draw some power!!
-	uint32_t start = millis();
-	while (millis() - start <= 2000UL) {
-		rainbowCycle(10);
-	}
+	// uint32_t start = millis();
+	// while (millis() - start <= 2000UL) {
+		// rainbowCycle(10);
+		rainbowStep(4);
+	// }
 
 #if 0 // TEST LED CODE START
 	while (1) {

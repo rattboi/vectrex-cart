@@ -41,9 +41,10 @@ page_label_end      equ      $c888
 calibrationValue    equ      $c889
 gameScale           equ      $c890
 ;***************************************************************************
-; VECTREX RAM SECTION ($C800-$CFFF)
+; SYSTEM AREA of USER RAM SECTION ($CB00-$CBEA)
 ;***************************************************************************
 rpcfn               equ      $cb00
+rpcfn2              equ      rpcfn+(rpcfndatend-rpcfndat)
 ;***************************************************************************
 ; HEADER SECTION
 ;***************************************************************************
@@ -58,6 +59,7 @@ rpcfn               equ      $cb00
 ;***************************************************************************
 ; here the cartridge program starts off
 main
+; copy menu RPC function to Vectrex USER RAM
 rpccopystart
                     ldx      #rpcfndat
                     ldy      #rpcfn
@@ -66,6 +68,15 @@ rpccopyloop
                     sta      ,y+
                     cmpx     #rpcfndatend
                     bne      rpccopyloop
+; copy LED RPC function to Vectrex USER RAM
+rpccopystart2
+                    ldx      #rpcfndat2
+                    ldy      #rpcfn2
+rpccopyloop2
+                    lda      ,x+
+                    sta      ,y+
+                    cmpx     #rpcfndatend2
+                    bne      rpccopyloop2
 init_vars
 ; init menu var
                     jsr      init_page_cursor
@@ -79,6 +90,12 @@ init_vars
                     lda      #1
                     sta      gameScale
 loop
+; Rainbow Step LEDs
+                    lda      #4                           ; LED step rate
+                    sta      $7ffe                        ; Store in parmRam[254]
+                    lda      #5                           ; rpc call to rainbowStep()
+                    jmp      rpcfn2                       ; Call
+loop_cont
 ; Recal video stuff
                     jsr      Wait_Recal
                     jsr      Intensity_5F
@@ -342,7 +359,7 @@ headerloop
                     cmpx     #$1A
                     bne      headerloop
                     jsr      init_page_cursor
-                    jmp      loop ;start address
+                    jmp      loop_cont ;start address
 newrom
                     ldu      #$f000
                     pshs     u
@@ -350,6 +367,19 @@ newrom
 vextreme_marker
                     fcb      "VEXTREME",$80   ; for matching against cart header
 rpcfndatend
+
+; LED RPC2 function (needed to skip init_page_cursor conditionally)
+rpcfndat2
+                    sta      $7fff
+rpcwaitloop2
+                    lda      $0
+                    cmpa     # 'g'
+                    bne      rpcwaitloop2
+                    lda      $1
+                    cmpa     # ' '
+                    bne      rpcwaitloop2
+                    jmp      loop_cont ;start address
+rpcfndatend2
 ;***************************************************************************
 ; SUBROUTINE SECTION
 ;***************************************************************************

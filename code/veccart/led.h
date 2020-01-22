@@ -33,6 +33,20 @@
 #define RGB_BRG (1 | (2 << 2) | (0 << 4))
 #define RGB_BGR (2 | (1 << 2) | (0 << 4))
 
+// Addressable LED Preset Colors
+static uint32_t colors[] = {
+    0,        // off
+    0xFF0000, // red
+    0xFF9900, // orange
+    0xFFFF00, // yellow
+    0x00FF00, // green
+    0x00FFFF, // cyan
+    0x0000FF, // blue
+    0x7700FF, // pink
+    0xFF00FF, // magenta
+    0xFFFFFF  // white
+};
+
 /* 8-bit gamma-correction table.
    Copy & paste this snippet into a Python REPL to regenerate:
 import math
