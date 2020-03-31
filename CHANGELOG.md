@@ -23,7 +23,20 @@
 - Add hardware version support for pin definitions
 - Add 128KB bankswitching (V-INT pin)
 - Developer mode, allow the cart to stay plugged into a computer and appear as a RAMDISK
-- Figure out why Polar Rescue crashes when the sub launches
+
+## v0.21
+
+- :warning: Added NOTICE of Current Development
+- Fixes Polar Rescue and implements a new Reset Heurisic #37
+- Adds addressable LED control and demo #41
+    - added 3 functions to control the LEDs from a Vectrex program
+        - updateOne() - RPC 6
+        - updateAll() - RPC 4
+        - updateMulti() - RPC 7
+    - added RPC function 5 to step through rainbow control of LEDs in menu
+    - added "LED TEST" which uses updateMulti to show how to finely control
+    all of the LEDs with a test program.  Press UP on the joystick, try it slowly as well :D
+    - added addressable LED control to Veccy Bird v1.5
 
 ## v0.2
 
