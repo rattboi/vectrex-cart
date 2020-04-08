@@ -41,8 +41,9 @@ wloop:
     bne   clearcount
 
     add   r8,#1                 // Increase reset vector count
-    cmp   r8,#0x300000          // 8 cycles * 0x170000 is about 100ms (FIXME: use HW timer)
-                                //  so this is more like 300ms (quick tap resets game, long tap back to menu)
+    cmp   r8,#0x700000          // 8 cycles * 0x170000 is about 100ms (FIXME: use HW timer)
+                                //   0x700000 is is more like 700ms (quick tap resets game, long tap back to menu)
+                                //   Found that no-buzz Vectrex has a min 300ms reset pulse, so 700ms is about right.
     blo   resetexit             // Keep the increased count, but exit without returning to menu
 
     // Reset vector detected for more than 100ms, exchange the rom and menu data
