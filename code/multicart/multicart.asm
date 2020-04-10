@@ -49,10 +49,14 @@ rpcfn2              equ      rpcfn+(rpcfndatend-rpcfndat)
 ; HEADER SECTION
 ;***************************************************************************
                     org      0
-                    fcb      "g GCE 2019", $80            ; 'g' is copyright sign
+                    fcb      "g GCE 2020", $80            ; 'g' is copyright sign
                     fdb      vextreme_tune1               ; catchy intro music to get stuck in your head
                     fcb      $F6, $60, $20, -$42
                     fcb      "VEXTREME",$80               ; some game information ending with $80
+                    fcb      $FC, $40, -$20, -$32
+                    fcb      "HW=11.22",$80               ; HW version info
+                    fcb      $FC, $40, -$30, -$32
+                    fcb      "SW=33.44",$80               ; SW version info
                     fcb      0                            ; end of game header
 ;***************************************************************************
 ; CODE SECTION
