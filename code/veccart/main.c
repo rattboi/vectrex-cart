@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "sys.h"
 #include "led.h"
 #include "delay.h"
 #include "main.h"
@@ -51,6 +52,8 @@ union cart_and_listing {
 	char cartData[64*1024];
 	dir_listing listing;
 };
+
+system_options sys_opt;
 
 union cart_and_listing c_and_l;
 
@@ -212,6 +215,7 @@ void doHandleEvent(int data) {
 		case 5: rainbowStep((int)parmRam[254]); break;
 		case 6: updateOne(); break;
 		case 7: updateMulti(); break;
+		case 8: ledsSetBrightness((int)parmRam[254]); break;
 	}
 	xprintf("Done\n");
 }
@@ -293,10 +297,38 @@ int main(void) {
 	systick_counter_enable();
 	systick_interrupt_enable();
 
+	// TODO: load new options from VEXTREME/options.txt in key=val format
+	sys_opt.size = sizeof(sys_opt);
+	sys_opt.ver = 1;
+	sys_opt.hw_ver = 0x0015; // v0.21
+	sys_opt.rgb_type = RGB_TYPE_10;
+
 	xprintf("\nInited.\n");
 
-	ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
-	ledsSetBrightness(150); // be careful not to set this too high when using white, those LEDs draw some power!!
+	// HW version < 0.30
+	if (sys_opt.hw_ver < 0x001e) {
+		xprintf("HW VER < 0.30\n");
+		if (sys_opt.rgb_type == RGB_TYPE_10) {
+			xprintf("RGB_TYPE_10\n");
+			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+			ledsSetBrightness(150); // be careful not to set this too high when using white, those LEDs draw some power!!
+		} else if (sys_opt.rgb_type == RGB_TYPE_4) {
+			xprintf("RGB_TYPE_4\n");
+			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+			ledsSetBrightness(255); // we will be limiting to 4, it's ok to crank them all of the way up!
+		} else if (sys_opt.rgb_type == RGB_TYPE_NONE) {
+			xprintf("RGB_TYPE_NONE\n");
+			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+			ledsSetBrightness(0); // sleeper cart, you'll never see it coming _._
+		}
+	}
+	// HW version >= 0.30
+	else if (sys_opt.hw_ver >= 0x001e) { // >= 0.30
+		xprintf("HW VER >= 0.30\n");
+		ledsInitSW(4, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+		ledsSetBrightness(255); // we will be limiting to 4, it's ok to crank them all of the way up!
+	}
+
 	// uint32_t start = millis();
 	// while (millis() - start <= 2000UL) {
 		// rainbowCycle(10);

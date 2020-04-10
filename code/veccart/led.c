@@ -6,6 +6,9 @@
 #include <libopencm3/stm32/spi.h>
 #include "xprintf.h"
 #include "delay.h"
+#include "sys.h"
+
+extern system_options sys_opt;
 
 // APA102-2020 Driver - SPI2 Hardware
 // CS   - 33 - PB12  - SPI2_NSS  - NA v0.2 HW (currently V-HALT)
@@ -112,13 +115,21 @@ void rainbowCycle(uint8_t wait) {
 
 // Designed to step through a distributed rainbow equally distributed across the LEDs
 void rainbowStep(uint8_t step) {
-    static uint16_t i = 0;
+    static uint16_t n = 0;
     static uint8_t w = 0, j = 0;
     uint8_t *p;
     j += step;
-    for (i = 0; i < numLEDs; i++) {
-        w = ((i * 256 / numLEDs) + j) & 255;
-        p = &pixels[i * 3];
+    for (n = 0; n < numLEDs; n++) {
+        w = ((n * 256 / numLEDs) + j) & 255;
+        p = &pixels[n * 3];
+        if (sys_opt.hw_ver < 0x001e && sys_opt.rgb_type == RGB_TYPE_4) {
+            if (n <= 2 || n == 4 || n == 6 || n == 8) {
+                p[rOffset] = 0;
+                p[gOffset] = 0;
+                p[bOffset] = 0;
+                continue;
+            }
+        }
         if (w < 85) {
             p[rOffset] = w * 3;
             p[gOffset] = 255 - w;
@@ -383,19 +394,12 @@ void ledsUpdate() {
         for (i=0; i<4; i++) {
             spi_xfer(SPI2, 0x00);             // 4 byte start-frame marker
         }
-        if (brightness) {                     // Scale pixel brightness on output
-            do {                              // For each pixel...
-                spi_xfer(SPI2, 0xFF);         //  Pixel start
-                for (i=0; i<3; i++) {
-                    spi_xfer(SPI2, (*ptr++ * b16) >> 8); // Scale, write RGB
-                }
-            } while (--n);
-        } else {                              // Full brightness (no scaling)
-            do {                              // For each pixel...
-                spi_xfer(SPI2, 0xFF);         //  Pixel start
-                for(i=0; i<3; i++) spi_xfer(SPI2, *ptr++); // Write R,G,B
-            } while(--n);
-        }
+        do {                                  // For each pixel...
+            spi_xfer(SPI2, (0xE0 + brightness)); // Factor in brightness value
+            for (i=0; i<3; i++) {
+                spi_xfer(SPI2, *ptr++);       // Write R,G,B
+            }
+        } while(--n);
 
         // Four end-frame bytes are seemingly indistinguishable from a white
         // pixel, and empirical testing suggests it can be left out...but it's
@@ -410,21 +414,12 @@ void ledsUpdate() {
         for (i=0; i<4; i++) {
             leds_sw_spi_out(0);              // Start-frame marker
         }
-        if (brightness) {                    // Scale pixel brightness on output
-            do {                             // For each pixel...
-                leds_sw_spi_out(0xFF);       //  Pixel start
-                for (i=0; i<3; i++) {
-                    leds_sw_spi_out((*ptr++ * b16) >> 8); // Scale, write
-                }
-            } while(--n);
-        } else {                             // Full brightness (no scaling)
-            do {                             // For each pixel...
-                leds_sw_spi_out(0xFF);       //  Pixel start
-                for (i=0; i<3; i++) {
-                    leds_sw_spi_out(*ptr++); // R,G,B
-                }
-            } while(--n);
-        }
+        do {                                 // For each pixel...
+            leds_sw_spi_out(0xE0 + brightness); // Factor in brightness value
+            for (i=0; i<3; i++) {
+                leds_sw_spi_out(*ptr++);     // R,G,B
+            }
+        } while(--n);
         for (i=0; i<4; i++) {
             leds_sw_spi_out(0xFF);           // End-frame marker (see note above)
         }
@@ -439,6 +434,15 @@ void ledsClear() { // Write 0s (off) to full pixel buffer
 
 // Set pixel color, separate R,G,B values (0-255 ea.)
 void ledsSetPixelColorRGB(uint16_t n, uint8_t r, uint8_t g, uint8_t b) {
+    if (sys_opt.hw_ver < 0x1e && sys_opt.rgb_type == RGB_TYPE_4) {
+        if (n <= 2 || n == 4 || n == 6 || n == 8) {
+            uint8_t *p = &pixels[n * 3];
+            p[rOffset] = 0;
+            p[gOffset] = 0;
+            p[bOffset] = 0;
+            return;
+        }
+    }
     if (n < numLEDs) {
         uint8_t *p = &pixels[n * 3];
         p[rOffset] = r;
@@ -449,6 +453,15 @@ void ledsSetPixelColorRGB(uint16_t n, uint8_t r, uint8_t g, uint8_t b) {
 
 // Set pixel color, 'packed' RGB value (0x000000 - 0xFFFFFF)
 void ledsSetPixelColor(uint16_t n, uint32_t c) {
+    if (sys_opt.hw_ver < 0x1e && sys_opt.rgb_type == RGB_TYPE_4) {
+        if (n <= 2 || n == 4 || n == 6 || n == 8) {
+            uint8_t *p = &pixels[n * 3];
+            p[rOffset] = 0;
+            p[gOffset] = 0;
+            p[bOffset] = 0;
+            return;
+        }
+    }
     if (n < numLEDs) {
         uint8_t *p = &pixels[n * 3];
         p[rOffset] = (uint8_t)(c >> 16);
@@ -478,24 +491,18 @@ uint16_t ledsNumPixels() { // Ret. strip length
 }
 
 // Set global strip brightness.  This does not have an immediate effect;
-// must be followed by a call to show().  Not a fan of this...for various
-// reasons I think it's better handled in one's sketch, but it's here for
-// parity with the NeoPixel library.  Good news is that brightness setting
-// in this library is 'non destructive' -- it's applied as color data is
-// being issued to the strip, not during setPixel(), and also means that
-// getPixelColor() returns the exact value originally stored.
+// must be followed by a call to show(). Good news is that brightness setting
+// in this library is 'non destructive' -- it's applied as global data
+// being issued to the upper byte of each pixel, not during setPixel(),
+// and also means that getPixelColor() returns the exact value originally stored.
 void ledsSetBrightness(uint8_t b) {
-    // Stored brightness value is different than what's passed.  This
-    // optimizes the actual scaling math later, allowing a fast 8x8-bit
-    // multiply and taking the MSB.  'brightness' is a uint8_t, adding 1
-    // here may (intentionally) roll over...so 0 = max brightness (color
-    // values are interpreted literally; no scaling), 1 = min brightness
-    // (off), 255 = just below max brightness.
-    brightness = b + 1;
+    // global brightness value is 5 bits in the MSB of each 32-bit pixel data
+    // 111xxxxx RRRRRRRR GGGGGGGG BBBBBBBB, where xxxxx is 0 - 31 brightness
+    brightness = b >> 3;
 }
 
 uint8_t ledsGetBrightness() {
-    return brightness - 1; // Reverse above operation
+    return brightness << 3; // Reverse above operation
 }
 
 // Return pointer to the library's pixel data buffer.  Use carefully,

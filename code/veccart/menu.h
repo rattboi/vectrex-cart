@@ -16,7 +16,7 @@ typedef struct {
 } dir_listing;
 
 int removeExtension(char* filename, char* extension);
-void sortDirectory(char *fdir, dir_listing *listing); 
+void sortDirectory(char *fdir, dir_listing *listing);
 void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int strptrs, char *romData); 
 
 #endif
