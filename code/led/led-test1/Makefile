@@ -10,15 +10,15 @@ docker-build: Dockerfile
 all: docker
 
 docker:
-	docker run --rm -v `pwd`:/build -u `id -u ${USER}`:`id -g ${USER}` asm6809 make led-test.bin
+	docker run --rm -v `pwd`:/build -u `id -u ${USER}`:`id -g ${USER}` asm6809 make led-test1.bin
 
-led-test.bin: led-test.asm
+led-test1.bin: led-test1.asm
 	$(AS)  -B -o $@ $^
 
 clean:
-	rm -f led-test.bin
+	rm -f led-test1.bin
 
-copy: led-test.bin
+copy: led-test1.bin
 	sudo mount /dev/sde1 /mnt
-	sudo cp led-test.bin /mnt
+	sudo cp led-test1.bin /mnt
 	sudo umount /mnt

@@ -1,10 +1,12 @@
 ; Copyright (C) 2020 Brett Walach <technobly at gmail.com>
 ; --------------------------------------------------------------------------
-; LED TEST demo
+; LED TEST demo v2.0
 ;
 ; This application demonstrates how to control the addressable LEDs
 ; by seeding $7ff0 through $7ff9 with the LED colors, then calling
 ; RPC function ID 7 (updateMulti) which writes out the data to all LEDs
+;
+; Also demonstrates RPC ID 8 for LED brightness control
 ;
 ; LED Colors
 ; ----------
@@ -18,6 +20,15 @@
 ; 7 = pink
 ; 8 = magenta
 ; 9 = white (Try not to use this one... it kind of draws a lot of power!)
+;
+; LED brightness
+; --------------
+; 0 = off
+; 1..30
+; 31 = max brightness
+;
+; When sending brightness value, first multiply value (0 - 31) by 8,
+; such that sent value in RPC function $7ffe = 0 - 248.
 ;
 ; Original header follows:
 ; --------------------------------------------------------------------------
@@ -61,7 +72,7 @@ rpcfn               equ      $cb00
                     org      0
                     fcb      "g GCE 2020", $80            ; 'g' is copyright sign
                     fdb      vextreme_tune1               ; catchy intro music to get stuck in your head
-                    fcb      $F6, $60, $20, -$42
+                    fcb      $F6, $60, $20, -$60
                     fcb      "LED TEST V2.0",$80          ; some game information ending with $80
                     fcb      0                            ; end of game header
 ;***************************************************************************
