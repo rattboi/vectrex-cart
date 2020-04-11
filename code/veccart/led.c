@@ -200,14 +200,14 @@ uint32_t colorWheel(uint8_t WheelPos) {
 //         Effective range is 2 - 8, 4 is default for 16 pixels.  Play with this.
 // Color - 32-bit packed RGB color value.  All pixels will be this color.
 // knightRider(cycles, speed, width, color);
-void knightRider(uint16_t cycles, uint16_t speed, uint8_t width, uint16_t first, uint16_t last, uint32_t color) {
+void __attribute__((optimize("O0"))) knightRider(uint16_t cycles, uint16_t speed, uint8_t width, uint16_t first, uint16_t last, uint32_t color) {
   uint32_t old_val[last+1]; // up to 256 lights!
   // Larson time baby!
   for (int i = 0; i < cycles; i++) {
     for (int count = first+1; count<last+1; count++) {
       ledsSetPixelColor(count, color);
       old_val[count] = color;
-      for(int x = count; x>0; x--) {
+      for (int x = count; x>0; x--) {
         old_val[x-1] = dimColor(old_val[x-1], width);
         ledsSetPixelColor(x-1, old_val[x-1]);
       }
@@ -239,7 +239,7 @@ void theaterChaseRainbow(int wait) {
         // revolution of the color wheel (range 65536) along the length
         // of the strip (ledsNumPixels() steps):
         int      hue   = firstPixelHue + c * 65536L / ledsNumPixels();
-        uint32_t color = ledsGamma32(ledsColorHSV(hue)); // hue -> RGB
+        uint32_t color = ledsGamma32(ledsColorHSV2(hue, 255, 255)); // hue -> RGB
         ledsSetPixelColor(c, color); // Set pixel 'c' to value 'color'
       }
       ledsUpdate();                // Update strip with new contents
@@ -385,7 +385,6 @@ void ledsUpdate() {
 
     uint8_t *ptr = pixels, i;            // -> LED data
     uint16_t n   = numLEDs;              // Counter
-    uint16_t b16 = (uint16_t)brightness; // Type-convert for fixed-point math
 
     //__disable_irq(); // If 100% focus on SPI clocking required
 
@@ -624,7 +623,7 @@ uint32_t ledsGamma32(uint32_t x) {
     // of an RGB value, but this seems exceedingly rare and if it's
     // encountered in reality they can mask values going in or coming out.
     for (uint8_t i=0; i<4; i++) {
-        y[i] = ledsGamma8(y[i]);
+        y[i] = _LedsGammaTable[y[i]]; // 0-255 in, 0-255 out
     }
     return x; // Packed 32-bit return
 }

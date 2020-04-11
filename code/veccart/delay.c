@@ -4,6 +4,8 @@
 
 volatile uint32_t sysTimerMs;
 
+extern void sys_tick_handler(void);
+
 // Called when systick fires
 void sys_tick_handler(void) {
     sysTimerMs++;
