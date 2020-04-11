@@ -15,7 +15,7 @@ typedef struct {
 	file_entry f_entry[80];
 } dir_listing;
 
-int removeExtension(char* filename, char* extension);
+int checkExtension(char* filename, const char** extlist, int size, bool modify);
 void sortDirectory(char *fdir, dir_listing *listing);
 void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int strptrs, char *romData); 
 
