@@ -24,6 +24,13 @@
 - Add 128KB bankswitching (V-INT pin)
 - Developer mode, allow the cart to stay plugged into a computer and appear as a RAMDISK
 
+## v0.22
+
+- ignore all file extensions that are not .bin or .vec (case insensitive) #49
+- increased quick reset delay to 700ms #45 
+- adds HW/SW version to VEXTREME menu and games #48 
+  - see example in LED Test v1.1.bin
+
 ## v0.21
 
 - :warning: Added NOTICE of Current Development
