@@ -89,8 +89,10 @@ void loadRom(char *fn) {
 	int n;
 	UINT x;
 	if (romData == c_and_l.cartData) {
+		// loaded cart data
 		n = sizeof(c_and_l.cartData);
 	} else {
+		// loaded menu data
 		n = sizeof(menuData);
 	}
 	fr = f_open(&f, fn, FA_READ);
@@ -101,7 +103,7 @@ void loadRom(char *fn) {
 	}
 	f_read(&f, romData, 64*1024, &r);
 	xprintf("Read %d bytes of rom data.\n", r);
-	// It's a game, not the menu
+	// It's a game
 	if (n > 32*1024 && r <= 32*1024) {
 		// pad with 0x01 for Mine Storm II and Polar Rescue (and any
 		// other buggy game that reads outside its program space)
@@ -112,6 +114,23 @@ void loadRom(char *fn) {
 		//Duplicate bank to upper bank
 		for (n = 0; n < 32*1024; n++) {
 			romData[n+32*1024] = romData[n];
+		}
+	}
+	// It's the menu, patch in the HW/SW versions
+	else {
+		char* ptr1 = strstr(menuData, "11");
+		char* ptr2 = strstr(menuData, "22");
+		char* ptr3 = strstr(menuData, "33");
+		char* ptr4 = strstr(menuData, "44");
+		if (ptr1 && ptr2 && ptr3 && ptr4) {
+			*ptr1++ = 'V';
+			*ptr1   = '0' + (sys_opt.hw_ver >> 8) % 10;
+			*ptr2++ = '0' + (sys_opt.hw_ver & 0xFF) / 10;
+			*ptr2   = '0' + (sys_opt.hw_ver & 0xFF) % 10;
+			*ptr3++ = 'V';
+			*ptr3   = '0' + (sys_opt.sw_ver >> 8) % 10;
+			*ptr4++ = '0' + (sys_opt.sw_ver & 0xFF) / 10;
+			*ptr4   = '0' + (sys_opt.sw_ver & 0xFF) % 10;
 		}
 	}
 	f_close(&f);
@@ -202,6 +221,15 @@ void updateMulti() {
 	ledsUpdate();
 }
 
+// Load HW/SW versions so that the menu can access and display them
+// Warning: This permanently alters the last 4 bytes of 32K ROM game data!
+void loadVersions() {
+	c_and_l.cartData[0x7ffc] = sys_opt.hw_ver >> 8;
+	c_and_l.cartData[0x7ffd] = sys_opt.hw_ver & 0xFF;
+	c_and_l.cartData[0x7ffe] = sys_opt.sw_ver >> 8;
+	c_and_l.cartData[0x7fff] = sys_opt.sw_ver & 0xFF;
+}
+
 // Handle an RPC event
 void doHandleEvent(int data) {
 	xprintf("Handling Event: %d. arg1: 0x%x... ", data, (int)parmRam[254]);
@@ -216,6 +244,7 @@ void doHandleEvent(int data) {
 		case 6: updateOne(); break;
 		case 7: updateMulti(); break;
 		case 8: ledsSetBrightness((int)parmRam[254]); break;
+		case 9: loadVersions(); break;
 	}
 	xprintf("Done\n");
 }
@@ -300,7 +329,8 @@ int main(void) {
 	// TODO: load new options from VEXTREME/options.txt in key=val format
 	sys_opt.size = sizeof(sys_opt);
 	sys_opt.ver = 1;
-	sys_opt.hw_ver = 0x0015; // v0.21
+	sys_opt.hw_ver = 0x0014; // v0.20
+	sys_opt.sw_ver = 0x0016; // v0.22
 	sys_opt.rgb_type = RGB_TYPE_10;
 
 	xprintf("\nInited.\n");

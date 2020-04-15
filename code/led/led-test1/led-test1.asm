@@ -1,6 +1,6 @@
 ; Copyright (C) 2020 Brett Walach <technobly at gmail.com>
 ; --------------------------------------------------------------------------
-; LED TEST demo
+; LED TEST demo v1.1
 ;
 ; This application demonstrates how to control the addressable LEDs
 ; by seeding $7ff0 through $7ff9 with the LED colors, then calling
@@ -18,6 +18,16 @@
 ; 7 = pink
 ; 8 = magenta
 ; 9 = white (Try not to use this one... it kind of draws a lot of power!)
+;
+; HW and SW Version
+; -----------------
+; Also demonstrates the Hardware and Software Version RPC function ID 9
+; Which reads HW version HI:LO into $7ffc:$7fffd
+;      ...and SW verison HI:LO into $7ffe:$7ffff
+; This can be used to know how many LEDs are expected on the VEXTREME PCB this
+; game is running on, or other info that might be useful in a programatic way.
+; This app converts the values to strings to display, but the comparison would
+; be much easier to check for different types of boards and software revisions.
 ;
 ; Original header follows:
 ; --------------------------------------------------------------------------
@@ -53,7 +63,17 @@ led_color_cnt       equ      $c884
 led_num             equ      $c885 ; counter to know when to switch colors (20ms * 5 = 100ms)
 led_num_inv         equ      $c886 ; inverse of led_num for sound generation
 led_true            equ      $c887 ; how many to light up 0 - 10
+                             ; Keep next 4 addresses in order
+cart_hw_ver_hi      equ      $c888 ; HW version vHI.LO saved in $7ffc
+cart_hw_ver_lo      equ      $c889 ;  |                         $7ffd
+cart_sw_ver_hi      equ      $c890 ; SW version vHI.LO          $7ffe
+cart_sw_ver_lo      equ      $c891 ;  |                         $7fff
+                             ; Keep these in order ^
+hw_ver_str_ram      equ      $c892 ; reserve 9 bytes, "HW=V0.00",$80
+sw_ver_str_ram      equ      #hw_ver_str_ram+9 ; reserve 9 bytes, "SW=V0.00",$80
+cart_ver_check      equ      #sw_ver_str_ram+9 ; Flag to force version check once
 led0_addr           equ      $7ff0 ; start address of LED0
+ver_addr            equ      $7ffc ; start address of Version Info (see above)
 ;***************************************************************************
 ; SYSTEM AREA of USER RAM SECTION ($CB00-$CBEA)
 ;***************************************************************************
@@ -62,10 +82,10 @@ rpcfn               equ      $cb00
 ; HEADER SECTION
 ;***************************************************************************
                     org      0
-                    fcb      "g GCE 2019", $80            ; 'g' is copyright sign
+                    fcb      "g GCE 2020", $80            ; 'g' is copyright sign
                     fdb      vextreme_tune1               ; catchy intro music to get stuck in your head
-                    fcb      $F6, $60, $20, -$42
-                    fcb      "LED TEST",$80               ; some game information ending with $80
+                    fcb      $F6, $60, $20, -$60
+                    fcb      "LED TEST V1.1",$80          ; some game information ending with $80
                     fcb      0                            ; end of game header
 ;***************************************************************************
 ; PROGRAM STARTS HERE
@@ -85,11 +105,26 @@ rpccopyloop
 ;***************************************************************************
 ; RPC COPY END
 ;***************************************************************************
+;***************************************************************************
+; LOAD VERSION STRING TEMPLATES IN RAM
+;***************************************************************************
+ver_str_cpy
+                    ldx      #hw_ver_string
+                    ldy      #hw_ver_str_ram
+ver_str_cpy_loop
+                    lda      ,x+
+                    sta      ,y+
+                    cmpx     #sw_ver_string+9
+                    bne      ver_str_cpy_loop
+;***************************************************************************
+; INIT VARIABLES
+;***************************************************************************
 init_vars
                     lda      #0
-                    sta      led_true
                     sta      led_color_cnt
                     lda      #1
+                    sta      cart_ver_check
+                    sta      led_true
                     sta      led_color
                     sta      calibrationValue
                     sta      gameScale
@@ -104,7 +139,12 @@ init_vars
                     sta      Vec_Joy_Mux_2_X           ;  | saves a few hundred cycles
                     sta      Vec_Joy_Mux_2_Y           ;  |
 ;***************************************************************************
-; LED UPDATE FUNCTION START
+; CART VERSION UPDATE FUNCTION
+;***************************************************************************
+ver_update_start    lda      #9                        ; rpc call to check cart version saved in $7ff0 - $7ff3
+                    jmp      rpcfn                     ; Call, and return to loop
+;***************************************************************************
+; LED UPDATE FUNCTION
 ;***************************************************************************
 led_update_start    lda      led_true                  ; Is it time to update?
                     cmpa     #1                        ;  |
@@ -226,6 +266,89 @@ no_y_movement
                     ldd      #$00d0                    ; a little bit left, centered vertically
                     ldu      #no_joypad_y_string       ; display no y string
 y_done
+                    jsr      sync_Print_Str_d          ; using string function
+;***************************************************************************
+; CALCULATE AND DISPLAY VERSION INFORMATION
+;***************************************************************************
+; Did we just come back from RPC call to update versions?
+                    lda      cart_ver_check            ; Is it time to calculate version info one time?
+                    cmpa     #1                        ;  |
+                    bne      display_version           ;  Already done, just display it!
+                    clra                               ;  |
+                    sta      cart_ver_check            ;  Yes, clear flag and load info
+load_hw_ver_start   clrb                               ; HW Version info bytes index counter
+                    ldx      #ver_addr                 ; Load start address for Version Info source
+                    ldy      #cart_hw_ver_hi           ; Load start address for Version Info dest
+load_hw_ver_loop    lda      ,x+                       ; Copy source to dest
+                    sta      ,y+                       ;  |
+                    incb                               ;
+                    cmpb     #2                        ; Copied 2 bytes?
+                    bne      load_hw_ver_loop          ;  No, get the next one
+load_sw_ver_start   clrb                               ; SW Version info bytes index counter
+                    ldx      #ver_addr+2               ; Load start address for Version Info source
+                    ldy      #cart_sw_ver_hi           ; Load start address for Version Info dest
+load_sw_ver_loop    lda      ,x+                       ; Copy source to dest
+                    sta      ,y+                       ;  |
+                    incb                               ;
+                    cmpb     #2                        ; Copied 2 bytes?
+                    bne      load_sw_ver_loop          ;  No, get the next one
+; Snippets below inspired heavily by OSD @
+; http://vectrexprogramming.blogspot.com/2014/11/converting-byte-value-to-ascii-in-6809_26.html
+hw_hi_start                                            ;
+                    ldb      cart_hw_ver_hi            ;
+                    clra                               ; reg a is our 10's count
+hw_hi_loop                                             ; Div10
+                    inca                               ; result will be +1
+                    subb     #10                       ; subtract 10 until <= 0
+                    bge      hw_hi_loop                ;  |
+                    ldx      #hw_ver_str_ram+4         ; load HW HI ram location
+                    ; reg b = 1's count, but it is 10 less than desired result
+                    addb     #48+10                    ; add ascii '0' + 10
+                    stb      ,x                        ; store 1's digit
+hw_lo_start                                            ;
+                    ldb      cart_hw_ver_lo            ;
+                    clra                               ; reg a is our 10's count
+hw_lo_loop                                             ; Div10
+                    inca                               ; result will be +1
+                    subb     #10                       ; subtract 10 until <= 0
+                    bge      hw_lo_loop                ;  |
+                    adda     #48-1                     ; add ascii '0' - 1
+                    ldx      #hw_ver_str_ram+6         ; load HW LO ram location
+                    sta      ,x+                       ; store 10's digit
+                    ; reg b = 1's count, but it is 10 less than desired result
+                    addb     #48+10                    ; add ascii '0' + 10
+                    stb      ,x                        ; store 1's digit
+sw_hi_start                                            ;
+                    ldb      cart_sw_ver_hi            ;
+                    clra                               ; reg a is our 10's count
+sw_hi_loop                                             ; Div10
+                    inca                               ; result will be +1
+                    subb     #10                       ; subtract 10 until <= 0
+                    bge      sw_hi_loop                ;  |
+                    ldx      #sw_ver_str_ram+4         ; load SW HI ram location
+                    ; reg b = 1's count, but it is 10 less than desired result
+                    addb     #48+10                    ; add ascii '0' + 10
+                    stb      ,x                        ; store 1's digit
+sw_lo_start                                            ;
+                    ldb      cart_sw_ver_lo            ;
+                    clra                               ; reg a is our 10's count
+sw_lo_loop                                             ; Div10
+                    inca                               ; result will be +1
+                    subb     #10                       ; subtract 10 until <= 0
+                    bge      sw_lo_loop                ;  |
+                    adda     #48-1                     ; add ascii '0' - 1
+                    ldx      #sw_ver_str_ram+6         ; load SW LO ram location
+                    sta      ,x+                       ; store 10's digit
+                    ; reg b = 1's count, but it is 10 less than desired result
+                    addb     #48+10                    ; add ascii '0' + 10
+                    stb      ,x                        ; store 1's digit
+; Display version finally :D
+display_version
+                    ldd      #$40A0                    ; a little bit left, lower than center
+                    ldu      #hw_ver_str_ram           ; display HW version string
+                    jsr      sync_Print_Str_d          ; using string function
+                    ldd      #$4010                    ; a little bit left, next line down
+                    ldu      #sw_ver_str_ram           ; display SW version string
                     jsr      sync_Print_Str_d          ; using string function
 
 ;***************************************************************************
@@ -349,6 +472,10 @@ no_joypad_y_string
                     fcb      "PRESS UP", $80
 joypad_up_string
                     fcb      "SWOOSH!", $80
+hw_ver_string
+                    fcb      "HW=V0.00", $80
+sw_ver_string
+                    fcb      "SW=V0.00", $80
 ;***************************************************************************
 ; BA-DEEB BA-DEEB THAT'S ALL FOLKS!
 ;***************************************************************************
