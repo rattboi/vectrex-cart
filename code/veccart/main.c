@@ -382,17 +382,17 @@ int main(void) {
 		rainbowCycle(10);
 
 		ledsClear();
-		knightRider(6, 64, 4, 2, 8, 0xFF7700); // Cycles, Speed, Width, First, Last, RGB Color (original orange-red)
-		knightRider(3, 32, 4, 2, 8, 0xFF00FF); // Cycles, Speed, Width, First, Last, RGB Color (purple)
-		knightRider(3, 32, 4, 2, 8, 0x0000FF); // Cycles, Speed, Width, First, Last, RGB Color (blue)
-		knightRider(3, 32, 5, 2, 8, 0x00FF00); // Cycles, Speed, Width, First, Last, RGB Color (green)
-		knightRider(3, 32, 5, 2, 8, 0xFFFF00); // Cycles, Speed, Width, First, Last, RGB Color (yellow)
-		knightRider(3, 32, 7, 2, 8, 0x00FFFF); // Cycles, Speed, Width, First, Last, RGB Color (cyan)
-		knightRider(3, 32, 7, 2, 8, 0xFFFFFF); // Cycles, Speed, Width, First, Last, RGB Color (white)
+		knightRider(6, 64, 4, 3, 9, 0xFF7700); // Cycles, Speed, Width, First, Last, RGB Color (original orange-red)
+		knightRider(3, 32, 4, 3, 9, 0xFF00FF); // Cycles, Speed, Width, First, Last, RGB Color (purple)
+		knightRider(3, 32, 4, 3, 9, 0x0000FF); // Cycles, Speed, Width, First, Last, RGB Color (blue)
+		knightRider(3, 32, 5, 3, 9, 0x00FF00); // Cycles, Speed, Width, First, Last, RGB Color (green)
+		knightRider(3, 32, 5, 3, 9, 0xFFFF00); // Cycles, Speed, Width, First, Last, RGB Color (yellow)
+		knightRider(3, 32, 7, 3, 9, 0x00FFFF); // Cycles, Speed, Width, First, Last, RGB Color (cyan)
+		knightRider(3, 32, 7, 3, 9, 0xFFFFFF); // Cycles, Speed, Width, First, Last, RGB Color (white)
 
 		// Iterate through a whole rainbow of colors
 		for(uint8_t j=0; j<252; j+=7) {
-			knightRider(1, 16, 2, 0, 8, colorWheel(j)); // Cycles, Speed, Width, RGB Color
+			knightRider(1, 16, 2, 0, 10, colorWheel(j)); // Cycles, Speed, Width, RGB Color
 		}
 
 		ledsClear();

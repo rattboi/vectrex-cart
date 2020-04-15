@@ -60,7 +60,8 @@ static void flashCs(int i) {
 	if (i) gpio_set(GPIOA, GPIO15); else gpio_clear(GPIOA, GPIO15);
 }
 
-static void flashEraseChip() {
+__attribute__((unused))
+static void flashEraseChip(void) {
 	int status;
 	xprintf("Erasing chip...\n");
 	//Send write enable
@@ -206,7 +207,7 @@ int flashWriteBlk(uint32_t lba, const uint8_t *copy_from) {
 
 //	xprintf("Write lba %d (addr %x blkaddr %x)\n", lba, addr, blkaddr);
 
-	if (blkaddr!=flashBlkAddr) {
+	if (blkaddr != (uint32_t)flashBlkAddr) {
 		//Write back data in block cache, if any
 		flashDoWriteback();
 		gpio_set(GPIOB, GPIO0); //turn on LED
