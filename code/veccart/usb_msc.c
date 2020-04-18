@@ -58,25 +58,25 @@
 #define SCSI_INQUIRY				0x12
 #define SCSI_MODE_SENSE_6			0x1A
 #define SCSI_SEND_DIAGNOSTIC			0x1D
+#define SCSI_PREVENT_ALLOW_MEDIUM_REMOVAL	0x1E
+#define SCSI_READ_FORMAT_CAPACITIES		0x23
 #define SCSI_READ_CAPACITY			0x25
 #define SCSI_READ_10				0x28
+#define SCSI_WRITE_10				0x2A
 
 
 /* Required SCSI Commands */
 
 /* Optional SCSI Commands */
 #define SCSI_REPORT_LUNS			0xA0
-#define SCSI_PREVENT_ALLOW_MEDIUM_REMOVAL	0x1E
 #define SCSI_MODE_SELECT_6			0x15
 #define SCSI_MODE_SELECT_10			0x55
 #define SCSI_MODE_SENSE_10			0x5A
 #define SCSI_READ_12				0xA8
-#define SCSI_READ_FORMAT_CAPACITIES		0x23
 #define SCSI_READ_TOC_PMA_ATIP			0x43
 #define SCSI_START_STOP_UNIT			0x1B
 #define SCSI_SYNCHRONIZE_CACHE			0x35
 #define SCSI_VERIFY				0x2F
-#define SCSI_WRITE_10				0x2A
 #define SCSI_WRITE_12				0xAA
 
 /* The sense codes */
