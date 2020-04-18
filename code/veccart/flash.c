@@ -35,19 +35,19 @@ static int flashBlkAddr=-1;
 // DO -  56 - PB4  - SPI1_MISO
 // CLK - 55 - PB3  - SPI1_SCK
 // DI -  57 - PB5  - SPI1_MOSI
-//This flash has 4K sectors, divided in 256-byte pages.
-//This means that if we write a (512-byte) sector, we need to
-//read the 4k sector, erase it, modify the 512 bytes in the RAM
-//buffer, then write the buffer back to the recently-erased sector.
+// This flash has 4K sectors, divided in 256-byte pages.
+// This means that if we write a (512-byte) sector, we need to
+// read the 4k sector, erase it, modify the 512 bytes in the RAM
+// buffer, then write the buffer back to the recently-erased sector.
 
-//We actually do some caching here: as soon as the first 512-byte sector
-//of a 4K page is written, we read the 4K sector into RAM and modify the RAM
-//buffer to reflect the 512byte write. We don't write it back yet, there may 
-//be more writes incoming. If they do, we again modify the in-memory page. If
-//there's a write to a different page or if 1.5 seconds have passed, we
-//write back the in-RAM page.
+// We actually do some caching here: as soon as the first 512-byte sector
+// of a 4K page is written, we read the 4K sector into RAM and modify the RAM
+// buffer to reflect the 512byte write. We don't write it back yet, there may
+// be more writes incoming. If they do, we again modify the in-memory page. If
+// there's a write to a different page or if 300ms seconds have passed, we
+// write back the in-RAM page.
 
-//To be called every 10th of a second
+// To be called every 50th of a second
 void flashTick() {
 	flashBlkAge++;
 	if (flashBlkAddr!=-1 && flashBlkAge>15) {
