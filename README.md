@@ -27,10 +27,7 @@ BOM and Parts ordering
 
 All the parts are described in [veccart.csv](bom/veccart.csv)
 
-Also, you can use this [Digi-Key shared cart](https://www.digikey.com/short/pv2qr0) if you're in a hurry.  It has will have part references right on the packages for you!
-
-:pencil: Note: The USB-C connector I chose is not available at Digi-Key, check Google for "Korean Hroparts Elec TYPE-C-31-M-12".
-
+Also, you can use this [Digi-Key shared cart](https://www.digikey.com/short/zpdmtp) if you're in a hurry.  It has will have part references right on the packages for you!
 
 Ordering PCB's
 ===
