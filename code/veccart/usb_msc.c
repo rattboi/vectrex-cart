@@ -434,6 +434,45 @@ static void scsi_mode_sense_6(usbd_mass_storage *ms,
 	}
 }
 
+// https://medium.com/@ly.lee/stm32-blue-pill-usb-bootloader-how-i-fixed-the-usb-storage-serial-dfu-and-webusb-interfaces-36d7fe245b5c
+// https://github.com/lupyuen/bluepill-bootloader/blob/master/src/msc.c#L438-L549
+//////////////////MODIFIED THIS/////////////////////////////////////////////////////
+//  Inquiry Page 0x00 - Supported VPD Pages (Section 5.4.18). From https://github.com/LonelyWolf/stm32/blob/master/cube-usb-msc/msc/usbd_msc_scsi.c
+#define LENGTH_INQUIRY_PAGE00     6  //  Previously 7
+static const uint8_t MSC_Page00_Inquiry_Data[LENGTH_INQUIRY_PAGE00] = {
+		0x00,  //  PERIPHERAL QUALIFIER and PERIPHERAL DEVICE TYPE
+		0x00,  //  Page Code
+		0x00,  //  Reserved
+		(LENGTH_INQUIRY_PAGE00 - 4),  //  Page Length
+		0x00,  //  Supported: Page 0x00 - Supported VPD Pages (Section 5.4.18)
+		0x80,  //  Supported: Page 0x80 - Unit Serial Number (Section 5.4.19)
+		// 0x83   //  Supported: Page 0x83 - Device Identification (Section 5.4.11)
+};
+
+//  Inquiry Page 0x80 - Unit Serial Number (Section 5.4.19)
+#define LENGTH_INQUIRY_PAGE80     0x0c  //  Predefined.
+#define LENGTH_SERIAL_NUMBER      0x08  //  Predefined.
+static const uint8_t MSC_Page80_Inquiry_Data[LENGTH_INQUIRY_PAGE80] = {
+		0x00,  //  PERIPHERAL QUALIFIER and PERIPHERAL DEVICE TYPE
+		0x80,  //  Page Code
+		0x00,  //  Reserved
+		(LENGTH_INQUIRY_PAGE80 - 4),  //  Page Length: 8 bytes
+		//  Serial number in ASCII (8 bytes) starts here.  Padded with spaces.
+		'1', '2', '3', '4',
+		'5', '6', '7', '8',
+};
+
+#ifdef NOTUSED
+//  Inquiry Page 0x83 - Device Identification (Section 5.4.11)
+#define LENGTH_INQUIRY_PAGE83     7
+static const uint8_t MSC_Page83_Inquiry_Data[LENGTH_INQUIRY_PAGE83] = {
+		0x00,  //  PERIPHERAL QUALIFIER and PERIPHERAL DEVICE TYPE
+		0x83,  //  Page Code
+		0x00,  //  Reserved
+		(LENGTH_INQUIRY_PAGE83 - 4),  //  Page Length
+};
+#endif  //  NOTUSED
+
 static void scsi_inquiry(usbd_mass_storage *ms,
 			 struct usb_msc_trans *trans,
 			 enum trans_event event)
@@ -466,11 +505,75 @@ static void scsi_inquiry(usbd_mass_storage *ms,
 
 			set_sbc_status_good(ms);
 		} else {
-			/* TODO: Add VPD 0x83 support */
-			/* TODO: Add VPD 0x00 support */
+			//  According to SCSI specs: When the EVPD bit is set to one, the PAGE CODE field specifies which page of vital product data information the device servers hall return (see 5.4).
+			//  Page 0x00 - Supported VPD Pages (Section 5.4.18)
+			//  Page 0x80 - Unit Serial Number (Section 5.4.19)
+			//  TODO: Page 0x83 - Device Identification (Section 5.4.11)
+			const uint8_t page_code = buf[2];
+			switch (page_code) {
+				case 0x0: {  //  Page 0x00 - Supported VPD Pages (Section 5.4.18)
+					uint8_t *pPage = (uint8_t *)MSC_Page00_Inquiry_Data;
+					size_t len = LENGTH_INQUIRY_PAGE00;
+
+					trans->bytes_to_write = len;
+					memcpy(trans->msd_buf, pPage, len);
+					trans->csw.csw.dCSWDataResidue = len;
+					set_sbc_status_good(ms);
+					break;
+				}
+				case 0x80: {  //  Page 0x80 - Unit Serial Number (Section 5.4.19)
+					uint8_t *pPage = (uint8_t *)MSC_Page80_Inquiry_Data;
+					size_t len = LENGTH_INQUIRY_PAGE80;
+
+					trans->bytes_to_write = len;
+					memcpy(trans->msd_buf, pPage, len);
+					trans->csw.csw.dCSWDataResidue = len;
+					set_sbc_status_good(ms);
+					break;
+				}
+#ifdef NOTUSED
+				case 0x83: {  //  Page 0x83 - Device Identification (Section 5.4.11)
+					uint8_t *pPage = (uint8_t *)MSC_Page83_Inquiry_Data;
+					size_t len = LENGTH_INQUIRY_PAGE83;
+
+					trans->bytes_to_write = len;
+					memcpy(trans->msd_buf, pPage, len);
+					trans->csw.csw.dCSWDataResidue = len;
+					set_sbc_status_good(ms);
+					break;
+				}
+#endif  //  NOTUSED
+				default:
+					xprintf("scsi_inquiry notsup %x", page_code);
+			}
 		}
 	}
 }
+////////////////////////////////////////////////////////////////////////////////////
+
+// https://medium.com/@ly.lee/stm32-blue-pill-usb-bootloader-how-i-fixed-the-usb-storage-serial-dfu-and-webusb-interfaces-36d7fe245b5c
+// https://github.com/lupyuen/bluepill-bootloader/blob/master/src/msc.c#L551-L572
+//////////////////ADDED THIS/////////////////////////////////////////////////////
+//  From https://habr.com/company/thirdpin/blog/304924/
+static void scsi_read_format_capacities(usbd_mass_storage *ms, struct usb_msc_trans *trans, enum trans_event event)
+{
+	if (EVENT_CBW_VALID == event) {
+
+		trans->msd_buf[3] = 0x08;
+		trans->msd_buf[4] = ms->block_count >> 24;
+		trans->msd_buf[5] = 0xff & (ms->block_count >> 16);
+		trans->msd_buf[6] = 0xff & (ms->block_count >> 8);
+		trans->msd_buf[7] = 0xff & ms->block_count;
+
+		trans->msd_buf[8] =  0x02;
+		trans->msd_buf[9] = 0;
+		trans->msd_buf[10] = 0x02;
+		trans->msd_buf[11] = 0;
+		trans->bytes_to_write = 12;  //  Was 9.
+		set_sbc_status_good(ms);
+	}
+}
+/////////////////////////////////////////////////////////////////////////////////
 
 static void scsi_command(usbd_mass_storage *ms,
 			 struct usb_msc_trans *trans,
@@ -522,6 +625,15 @@ static void scsi_command(usbd_mass_storage *ms,
 	case SCSI_WRITE_10:
 		scsi_write_10(ms, trans, event);
 		break;
+//////////////////ADDED THIS/////////////////////////////////////////////////////
+//  Windows will send these commands...
+	case SCSI_READ_FORMAT_CAPACITIES:
+		scsi_read_format_capacities(ms, trans, event);
+		break;
+	case SCSI_PREVENT_ALLOW_MEDIUM_REMOVAL:
+		set_sbc_status_good(ms);
+		break;
+/////////////////////////////////////////////////////////////////////////////////
 	default:
 		set_sbc_status(ms, SBC_SENSE_KEY_ILLEGAL_REQUEST,
 					SBC_ASC_INVALID_COMMAND_OPERATION_CODE,
@@ -594,6 +706,7 @@ static void msc_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
 			}
 		}
 
+// From https://habr.com/company/thirdpin/blog/304924/
 //Dirty copy/paste
 		if (false == trans->csw_valid) {
 			scsi_command(ms, trans, EVENT_NEED_STATUS);
@@ -752,7 +865,9 @@ static int msc_control_request(usbd_device *usbd_dev,
 		return USBD_REQ_HANDLED;
 	}
 
-	return USBD_REQ_NOTSUPP;
+// https://medium.com/@ly.lee/stm32-blue-pill-usb-bootloader-how-i-fixed-the-usb-storage-serial-dfu-and-webusb-interfaces-36d7fe245b5c
+// https://github.com/lupyuen/bluepill-bootloader/blob/master/src/msc.c#L887
+	return USBD_REQ_NEXT_CALLBACK;  //  Previously USBD_REQ_NOTSUPP. Allow unknown requests to fall to next callback e.g. CDC.
 }
 
 /** @brief Setup the endpoints to be bulk & register the callbacks. */
