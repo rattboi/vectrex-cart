@@ -24,6 +24,10 @@
 - Add 128KB bankswitching (V-INT pin)
 - Developer mode, allow the cart to stay plugged into a computer and appear as a RAMDISK
 
+## v0.23
+
+- Fixes issue where VEXTREME takes several minutes to mount as USB drive on Windows #53
+
 ## v0.22
 
 - ignore all file extensions that are not .bin or .vec (case insensitive) #49
