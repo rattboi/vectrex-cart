@@ -330,7 +330,7 @@ int main(void) {
 	sys_opt.size = sizeof(sys_opt);
 	sys_opt.ver = 1;
 	sys_opt.hw_ver = 0x0014; // v0.20
-	sys_opt.sw_ver = 0x0016; // v0.22
+	sys_opt.sw_ver = 0x0017; // v0.23
 	sys_opt.rgb_type = RGB_TYPE_10;
 
 	xprintf("\nInited.\n");
