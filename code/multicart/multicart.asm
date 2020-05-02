@@ -60,6 +60,8 @@ calibrationValue    rmb      1
 gameScale           rmb      1
 jump_to_buttons     rmb      1
 start_dev_mode      rmb      1
+romnumber           rmb      1
+highScoreSendFlag   rmb      1
 
 y_pos               rmb      1
 x_pos               rmb      1
@@ -72,6 +74,7 @@ ramdisk_once        rmb      1
 vusb_once           rmb      1
 
 last_user_ram       rmb      1                             ; unused in code
+
 ;***************************************************************************
 ; SYSTEM AREA of USER RAM SECTION ($CB00-$CBEA)
 ;***************************************************************************
@@ -145,9 +148,37 @@ load_dev_mode
 check_dev_mode
                     lda      usb_dev_addr                 ; Load sys_opt.usb_dev
                     cmpa     #0                           ; Is USB_DEV_DISABLED ?
-                    beq      loop_led                     ;  Yes, continue normally
+                    beq      check_hs_clear               ;  Yes, continue normally
                     lda      #1                           ;  No, enable Dev Mode
-                    sta      start_dev_mode               ;  after we fall through and start the LEDs
+                    sta      start_dev_mode               ;  |
+                    bra      loop_led                     ;  and skip over high score stuff for speed
+
+check_hs_clear
+                    ldd      #$7321                       ; Check cold start flag
+                    cmpd     Vec_Cold_Flag                ; |
+                    beq      skip_hs_clear                ; |
+                    lda      #0                           ; and only clear on cold start
+                    sta      highScoreSendFlag            ; |
+skip_hs_clear
+                    lda      highScoreSendFlag            ; Send high score flag to STM
+                    beq      hs_exit                      ; Skip saving high score if flag is not 0x01
+                    lda      #0                           ; |
+                    sta      highScoreSendFlag            ; Clear high score flag
+store_hs_in_parmram
+                    ldd      $cbeb                        ; Save high score
+                    sta      $7f00                        ; |
+                    stb      $7f01                        ; |
+                    ldd      $cbed                        ; |
+                    sta      $7f02                        ; |
+                    stb      $7f03                        ; |
+                    ldd      $cbef                        ; |
+                    sta      $7f04                        ; |
+                    stb      $7f05                        ; |
+                    lda      #14                          ; rpc call to saveHighScore()
+                    ldx      #loop_led                    ; Load return point for jump instruction
+                    jmp      rpcfn2                       ; Call
+hs_exit
+
 loop_led
 ; Rainbow Step LEDs
                     lda      #4                           ; LED step rate
@@ -295,6 +326,18 @@ check_buttons
                     leau     a,u                          ;fetch addr of string, page
                     pulu     pc
 
+;Js has been touched. Ignore input until it returns.
+;(ToDo: input repeating?)
+dowaitjszero
+                    jsr      Joy_Digital
+                    lda      Vec_Joy_1_X
+                    bne      nozero
+                    lda      Vec_Joy_1_Y
+                    bne      nozero
+                    sta      waitjs
+nozero
+                    jmp      loop_led
+
 button_routines
                     fdb      nobuttons                    ; 0x00 no buttons
                     fdb      dirup                        ; 0x01 b1
@@ -331,9 +374,38 @@ startgame                                                 ;Start the game
                     lsla                                  ; (page * 4) + cursor
                     lsla                                  ;  |
                     adda     cursor                       ;  |
+                    sta      romnumber                    ;Store ROM number
                     sta      $7ffe                        ;Store in special cart location
-                    lda      #1                           ;rpc call to load a rom
-                    jmp      rpcfn1                       ;Call
+                    lda      #1                           ;rpc call to doChangeRom()
+                    ldx      #startgame_hs_cont           ; Load return point for jump instruction
+                    jmp      rpcfn2                       ;Call
+startgame_hs_cont
+; 0x7F00 - 0x7F05 should have high score.  Note we must do byte reads to memory from 0x0000 to 0x7FFF
+                    lda      $ff7                         ; Should be a 0x77 of this is a game
+                    cmpa     #$77
+                    bne      startgame_hs_done            ; TODO: Jump location???
+
+                    lda      $ff0
+                    ldb      $ff1
+                    std      $cbeb
+                    lda      $ff2
+                    ldb      $ff3
+                    std      $cbed
+                    lda      $ff4
+                    ldb      $ff5
+                    std      $cbef
+                    lda      #$0x80
+                    sta      $cbf1
+
+                    ldb      #1
+                    stb      highScoreSendFlag            ; Set high score flag to 0x01
+                    stb      $ff7                         ; Set flag at 0xFF7 to 0x01
+
+startgame_hs_done
+                    lda      romnumber
+                    sta      $7ffe                        ; Store romnumber in special cart location
+                    lda      #15                          ; rpc call to doStartRom()
+                    jmp      rpcfn1                       ; Call
 
 ;loadapp
 ;                    lda      #0                           ; Load system app (hard coded to 0 for now: dev mode)
@@ -350,22 +422,9 @@ loaddevmode
                     lda      #10                          ; rpc call initiate VUSB check
                     jmp      rpcfn3                       ; Goodbye, we won't see you again hopefully!
 
-
 dirup
                     lda      #3                           ;rpc call to change up a directory
                     jmp      rpcfn1                       ;Call
-
-;Js has been touched. Ignore input until it returns.
-;(ToDo: input repeating?)
-dowaitjszero
-                    jsr      Joy_Digital
-                    lda      Vec_Joy_1_X
-                    bne      nozero
-                    lda      Vec_Joy_1_Y
-                    bne      nozero
-                    sta      waitjs
-nozero
-                    jmp      loop_main
 
 ;***************************************************************************
 ; RPC function for Menu operation - will be copied to RAM - call as rpcfn1
