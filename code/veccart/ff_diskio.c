@@ -23,10 +23,13 @@
 /*-----------------------------------------------------------------------*/
 
 DSTATUS disk_status (
-	BYTE pdrv		/* Physical drive nmuber to identify the drive */
+	BYTE pdrv		/* Physical drive number to identify the drive */
 )
 {
-	return 0; //SPI is always available
+	// unused for now
+	(void) pdrv;
+
+	return 0; // SPI is always available
 }
 
 
@@ -36,9 +39,12 @@ DSTATUS disk_status (
 /*-----------------------------------------------------------------------*/
 
 DSTATUS disk_initialize (
-	BYTE pdrv				/* Physical drive nmuber to identify the drive */
+	BYTE pdrv				/* Physical drive number to identify the drive */
 )
 {
+	// unused for now
+	(void) pdrv;
+
 	flashInit();
 	return 0;
 }
@@ -56,7 +62,10 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read */
 )
 {
-	int i;
+	// unused for now
+	(void) pdrv;
+
+	unsigned int i;
 	for (i=0; i<count; i++) {
 		flashReadBlk(sector+i, buff+(i*512));
 	}
@@ -99,6 +108,11 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
+	// unused for now
+	(void) pdrv;
+	(void) cmd;
+	(void) buff;
+
 	return RES_OK;
 }
 #endif

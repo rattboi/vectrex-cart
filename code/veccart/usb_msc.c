@@ -886,7 +886,7 @@ static void msc_set_config(usbd_device *usbd_dev, uint16_t wValue)
                 usbd_dev,
                 USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
                 USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
-                msc_control_request);
+                (usbd_control_callback) msc_control_request);
 }
 
 /** @addtogroup usb_msc */
