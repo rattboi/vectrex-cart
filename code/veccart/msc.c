@@ -94,7 +94,7 @@ static const struct usb_config_descriptor config_descr = {
 	.bConfigurationValue = 1,
 	.iConfiguration = 0,
 	.bmAttributes = 0x80,
-	.bMaxPower = 0x32,
+	.bMaxPower = 0xFA, // Set USB power to 500mA (was set to 100mA)
 	.interface = ifaces,
 };
 
