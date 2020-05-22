@@ -51,8 +51,10 @@ static int flashBlkAddr=-1;
 void flashTick() {
 	flashBlkAge++;
 	if (flashBlkAddr!=-1 && flashBlkAge>15) {
-		xprintf("Auto writeback after timeout\n");
 		flashDoWriteback();
+		xprintf("Auto writeback after timeout\n");
+
+		// We arrive here after each file copied to the cart or when the mounted drive is ejected.
 	}
 }
 
@@ -84,7 +86,13 @@ static void flashEraseChip(void) {
 	xprintf("Erasing chip done.\n");
 }
 
+bool flash_init = false; // only allow flash to be initialized once
 void flashInit(void) {
+	if (flash_init) {
+		return;
+	}
+	flash_init = true;
+
 	int id, mf;
 	gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO15);
 	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE,

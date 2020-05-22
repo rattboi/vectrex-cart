@@ -73,7 +73,9 @@ Found DFU: [0483:df11] ver=2200, devnum=22, cfg=1, intf=0, path="20-1.4.3", alt=
 
 ### Build and flash the STM32 image via dfu-util
 ```
-code/veccart $ make clean all flash
+code/veccart $ make clean all flash USE_HW=v0.3
+
+// NOTE: Use v0.2 above if you have v0.2 HW, or you may use v0.3 if you make the proper mods to your board.  See "Modifying v0.2 to v0.3"
 
 // You should end up with something like this
 
@@ -101,6 +103,7 @@ code/multicart $ make docker-build
   - Name: VEXTREME
   - Format: MS-DOS (FAT)
   - Scheme: Master Boot Record
+  - 512 byte page size
 
 - Be patient, it's slow!  Don't worry, copying binaries later will be fast!!
 
@@ -120,6 +123,13 @@ code/multicart $ make copy
 
 asm6809  -B -o multicart.bin multicart.asm
 ```
+
+Modifying v0.2 to v0.3
+===
+
+- To get the new reset feature of v0.3, as of v0.24 software you will need to jumper V-OE pin 12 of the cart fingers (or U3 pin 9) to STM32 pin 29 (PB10).  This may change in the future, don't sell your soldering iron!
+- More TBD
+
 
 Adding Vectrex Game ROMs (Binaries)
 ===
