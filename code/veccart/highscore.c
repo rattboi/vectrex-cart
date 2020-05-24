@@ -56,7 +56,7 @@ FRESULT highScoreOpenFile(void)
 }
 
 /**
- * Search for the game by name in the highscore file, and if it exists, 
+ * Search for the game by name in the highscore file, and if it exists,
  * read the game record associated with the name and store it in the
  * location pointed to by the second parameter (pGameRecord).
  *
@@ -79,9 +79,9 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
      */
     if (pGameName == NULL)
     {
-	return (HIGH_SCORE_GAME_NAME_INVALID_PTR);
+        return (HIGH_SCORE_GAME_NAME_INVALID_PTR);
     }
-    
+
     /**
      * Check to make sure file was opened successfully
      */
@@ -124,7 +124,7 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
      * Move file pointer to beginning of the file
      */
     f_lseek(&fileHighScore, 0);
-    
+
     /**
      * Search for game in file
      */
@@ -140,28 +140,27 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
          */
         if ((fResult != FR_OK) || (bytesRead == 0))
         {
-            exit = true;    
+            exit = true;
         }
 
         /**
          * Compare passed in game name to game name read from file
          */
         if ( (0 == strncmp((char *)pGameName, (char *)pGameRecord->name, gameNameSize))  &&
-	     (exit == false) )
+         (exit == false) )
         {
-	    /**
-	     * Move file pointer back to the beginning of the record for 
-	     * the game, to prepare writing of the new high score if it
-	     * is beat.
-	     */
-	    f_lseek(&fileHighScore, f_tell(&fileHighScore) - sizeof(GameFileRecord));
+            /**
+             * Move file pointer back to the beginning of the record for the
+             * game, to prepare writing of the new high score if it is beat.
+             */
+            f_lseek(&fileHighScore, f_tell(&fileHighScore) - sizeof(GameFileRecord));
 
-     	    /**
-	     * Found matching game
-	     */
-	    exit = true;
-	    retVal = HIGH_SCORE_SUCCESS;
-	}
+                /**
+             * Found matching game
+             */
+            exit = true;
+            retVal = HIGH_SCORE_SUCCESS;
+        }
     } while (exit == false);
 
     return retVal;
@@ -246,7 +245,7 @@ HighScoreRetVal highScoreSetGameRecordToDefaults(const unsigned char * pGameName
 /**
  * Return the size of the games name string, excluding the trailing 0x80
  *
- * param[in] - pString - 0x80 terminated game name string as found in 
+ * param[in] - pString - 0x80 terminated game name string as found in
  * cartridge.
  *
  * TODO - Update to grab the second portion of the string.  Look up to 0x80 0x00
@@ -258,10 +257,10 @@ static int highScoreGetFileNameSize(const unsigned char * pString)
 
     for (count = 0; count < MAX_GAME_NAME_SIZE; count++)
     {
-	if (pString[count] == 0x80)
-	{
-	    break;
-	}
+        if (pString[count] == 0x80)
+        {
+            break;
+        }
     }
     return count;
 }
@@ -279,7 +278,7 @@ void highScoreSave(unsigned char * pScore)
 
     /**
      * Compare this new high score to see if it is greater
-     * than the overall high score for this game stored in 
+     * than the overall high score for this game stored in
      * the highScore file.
      */
     HighScoreCompare retVal = highScoreCompare(pActiveGameData->maxScore, pScore);
@@ -304,13 +303,13 @@ void highScoreSave(unsigned char * pScore)
          */
         pActiveGameData->maxScore[i]  = '\0';
 
-	/**
-	 * Write the updated game record to the file
-	 * Note: The write pointer should be correct, either the end
-	 * of the file for a new game, or the beginning of the game
-	 * record where the update needs to happen.
-	 */
-	(void)highScoreStore(pActiveGameData);
+        /**
+         * Write the updated game record to the file
+         * Note: The write pointer should be correct, either the end
+         * of the file for a new game, or the beginning of the game
+         * record where the update needs to happen.
+         */
+        (void)highScoreStore(pActiveGameData);
     }
 }
 
@@ -365,8 +364,8 @@ HighScoreRetVal highScoreStore(GameFileRecord * pGameRecord)
 
 /**
  * Compare two scores in string BCD format with preceding
- * spaces as kept by the vectrex. 
- * Note: A maximum of six bytes are compared. 
+ * spaces as kept by the vectrex.
+ * Note: A maximum of six bytes are compared.
  *
  * @param[in] - pScore1 - Pointer to first score
  * @param[in] - pScore2 - Pointer to second score
@@ -383,15 +382,15 @@ HighScoreCompare highScoreCompare(const unsigned char * pScore1, const unsigned 
     for (i = 0; i < (MAX_GAME_SCORE_SIZE - 1); i++)
     {
         if (pScore1[i] < pScore2[i])
-	{
+        {
             retVal = HIGH_SCORE1_LESS_SCORE2;
-	    break;
-	}
-	else if (pScore2[i] < pScore1[i])
-	{
+            break;
+        }
+        else if (pScore2[i] < pScore1[i])
+        {
             retVal = HIGH_SCORE2_LESS_SCORE1;
-	    break;
-	}
+            break;
+        }
     }
     return (retVal);
 }
