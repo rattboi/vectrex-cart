@@ -305,7 +305,8 @@ button_routines
                     fdb      loaddevmode                  ; 0x06 b3+b2
                     fdb      nobuttons                    ; 0x07 b3+b2+b1
                     fdb      startgame                    ; 0x08 b4
-                    fdb      loadapp                      ; 0x09 b4+b1
+                   ;fdb      loadapp                      ; 0x09 b4+b1
+                    fdb      nobuttons                    ; 0x09 b4+b1
                     fdb      nobuttons                    ; 0x0A b4+b2
                     fdb      nobuttons                    ; 0x0B b4+b2+b1
                     fdb      nobuttons                    ; 0x0C b4+b3
@@ -334,11 +335,12 @@ startgame                                                 ;Start the game
                     lda      #1                           ;rpc call to load a rom
                     jmp      rpcfn1                       ;Call
 
-loadapp
-                    lda      #0                           ; Load system app (hard coded to 0 for now: dev mode)
-                    sta      $7ffe                        ; |
-                    lda      #11                          ; rpc call to load a system rom
-                    jmp      rpcfn2                       ; Goodbye, we won't see you again hopefully!
+;loadapp
+;                    lda      #0                           ; Load system app (hard coded to 0 for now: dev mode)
+;                    sta      $7ffe                        ; |
+;                    lda      #11                          ; rpc call to load a system rom
+;                    ldx      #$f000                       ; load x with return jmp address
+;                    jmp      rpcfn2                       ; Goodbye, we won't see you again hopefully!
 
 loaddevmode
                     ldd      #DEVMODE_TEXT_SIZE           ; Set Dev Mode Text Size
@@ -366,7 +368,7 @@ nozero
                     jmp      loop_main
 
 ;***************************************************************************
-; RPC function for Menu operation - will be copied to RAM - call as rpcfn
+; RPC function for Menu operation - will be copied to RAM - call as rpcfn1
 ;***************************************************************************
 rpcfndat1
                     sta      $7fff

@@ -86,8 +86,8 @@ static void flashEraseChip(void) {
 	xprintf("Erasing chip done.\n");
 }
 
-bool flash_init = false; // only allow flash to be initialized once
 void flashInit(void) {
+	static bool flash_init = false; // only allow flash to be initialized once
 	if (flash_init) {
 		return;
 	}

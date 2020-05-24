@@ -262,8 +262,8 @@ void loadApp() {
 		case 0:
 			romData = c_and_l.cartData;
 			xprintf("Launching /devmode.bin\n");
-		    loadRom("/devmode.bin");
-		    break;
+			loadRom("/devmode.bin");
+			break;
 		default:
 			break;
 	}
