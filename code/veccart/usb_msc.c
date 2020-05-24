@@ -27,6 +27,8 @@
 #include "usb_private.h"
 
 #include "xprintf.h"
+#include "sys.h"
+extern system_options sys_opt;
 
 /* Definitions of Mass Storage Class from:
  *
@@ -544,7 +546,7 @@ static void scsi_inquiry(usbd_mass_storage *ms,
                 }
 #endif  //  NOTUSED
                 default:
-                    xprintf("scsi_inquiry notsup %x", page_code);
+                    xprintf("scsi_inquiry page_code error %x\n", page_code);
             }
         }
     }
@@ -592,6 +594,7 @@ static void scsi_command(usbd_mass_storage *ms,
         trans->byte_count = 0;
     }
 
+    xprintf("scsi_command: %02X\n", trans->cbw.cbw.CBWCB[0]);
     switch (trans->cbw.cbw.CBWCB[0]) {
     case SCSI_TEST_UNIT_READY:
     case SCSI_SEND_DIAGNOSTIC:
@@ -643,6 +646,10 @@ static void scsi_command(usbd_mass_storage *ms,
         trans->bytes_to_read = 0;
         trans->csw.csw.bCSWStatus = CSW_STATUS_FAILED;
         break;
+    }
+
+    if (trans->cbw.cbw.CBWCB[0] == SCSI_START_STOP_UNIT) {
+        sys_opt.usb_dev = USB_DEV_EJECT; // EXIT USB MODE, WE GOT EJECTED!
     }
 }
 
@@ -886,7 +893,7 @@ static void msc_set_config(usbd_device *usbd_dev, uint16_t wValue)
                 usbd_dev,
                 USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
                 USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
-                msc_control_request);
+                (usbd_control_callback) msc_control_request);
 }
 
 /** @addtogroup usb_msc */
