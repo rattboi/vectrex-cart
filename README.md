@@ -128,6 +128,7 @@ Modifying v0.2 to v0.3
 ===
 
 - To get the new reset feature of v0.3, as of v0.24 software you will need to jumper V-OE pin 12 of the cart fingers (or U3 pin 9) to STM32 pin 29 (PB10).  This may change in the future, don't sell your soldering iron!
+- The wire mod above also allows you to play Animaction on VEXTREME!
 - More TBD
 
 
