@@ -72,7 +72,7 @@ put_menu_back:
     strb  r0,[r2, #1]           // |
 
 #elif (HW_VER >= 3)
-// ===========================================================
+// -----------------------------------------------------------
     ldr   r0,[r4, 0x10]         // Load addr pins (for /CE)
     lsls  r0,#(31-15)           // Shift bit 15 into sign flag
     bpl   clearcount            // Bit 15 clear? clearcount if so
@@ -183,12 +183,25 @@ write:
     ldr   r0,[r1, 0x10]         // Load addr word from gpioc
     ubfx  r0,r0,#0,#15          // and with 0x7fff
 
-    // We need to delay a while because the written data is only stable
-    // in the 2nd half of the cycle.
+#if (HW_VER < 3)
+// ===========================================================
+// We need to delay a while because the written data is only stable in the 2nd half of the cycle.
+// FIXME: This will become a problem with more code added below.
     mov   r6,#10                // <- Oscillator frequency dependent magic number here!!
+waitdataloop:                   // Wait a bit
+    subs  r6,#1                 // |
+    bne   waitdataloop          // |
+
+#elif (HW_VER >= 3)
+// -----------------------------------------------------------
+// Wait until the /E goes low (data valid), REQUIRES v0.3 HW
 waitdataloop:
-    subs  r6,#1
-    bne   waitdataloop
+    ldr   r6,[r4, 0x10]         // Load addr pins (for /E)
+    lsls  r6,#(31-10)           // Shift bit 10 into sign flag (for /OE which is /E)
+    bmi   waitdataloop          // Bit 10 high? wait for low if so
+
+#endif // HW_VER == 3
+// ===========================================================
 
     ldr   r5,[r3, 0x10]         // Load data
     and   r5,#0xff
@@ -204,24 +217,38 @@ waitdataloop:
     // Is it a write to addr #$0000 = serial port addr
     // TODO: avoid addr 0 because Polar Rescue writes there occassionally
     //       avoid addr 1 because the Bad Apple player writes there a lot!
-    cmp   r0,#0
-    beq   outserial
+    // cmp   r0,#0
+    // beq   outserial
 
     // See if it is a write to 7Fxx (this is extra insurance against odd Polar Rescue writes)
     lsr   r9,r0,#8
     cmp   r9,#0x7f
-    bne   wrdone                // If not, bail out.  TODO: jump to write RAM instead
+    bne   writecart             // If not, must be a general cart RAM write
 
     // See if it is a write to xxFF
     and   r0,#0xff
     cmp   r0,#0xff
     beq   handleevent
 
-    // Nope, it is probably a parameter
+    // Nope, it is probably a parameter (0x7ff0 ~ 0x7ffe)
     ldr   r7,=parmRam
     strb  r5,[r7, r0]
 
-    // Wait until the /wr line goes high again
+    writecart:
+    lsr   r9,r0,#8              // See if it is a write to 2000 - 27ff
+    cmp   r9,#0x20              // | TODO: Make this range two variables
+    blo   wrdone                // below the range we want, bail
+    cmp   r9,#0x27              // |
+    bhi   wrdone                // above the range we want, bail
+
+    ldr   r9,=cartData          // Write to cartData[r0] = r5
+    ldr   r9,[r9]               // |
+    strb  r5,[r9, r0]           // |
+    // fall through to wrdone
+
+#if (HW_VER < 3)
+// ===========================================================
+// Wait until the /wr line goes high again
 wrdone:
     ldr   r0,[r4, 0x10]         // Load inputs
     lsls  r0,#(31-1)            // Shift bit 1 into sign flag
@@ -229,6 +256,18 @@ wrdone:
                                 //  to not return to menu unless registers re-init with initloop jump
                                 //  when playing Polar Rescue, after sub launches and Write to cart occur)
     b     wrdone                // Wr still is low
+
+#elif (HW_VER >= 3)
+// -----------------------------------------------------------
+// Wait until the /E goes high again, REQUIRES v0.3 HW
+wrdone:
+    ldr   r6,[r4, 0x10]         // Load addr pins (for /E)
+    lsls  r6,#(31-10)           // Shift bit 10 into sign flag (for /OE which is /E)
+    bpl   wrdone                // Bit 10 low? wait for high if so
+    b     initloop              // otherwise all done here
+
+#endif // HW_VER == 3
+// ===========================================================
 
 // This sub-routine is after wrdone, and lets the parameter write fall through to wrdone
 // to save a few instructions on average and force more cycles to be wasted only when using serial
@@ -268,6 +307,11 @@ ledsoff:
 logR5:
     mov   r0,r5
     ldr   r1,=doLog
+    blx   r1
+    b     initloop
+
+dumpmem:
+    ldr   r1,=dumpMemory
     blx   r1
     b     initloop
 
