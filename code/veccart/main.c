@@ -119,7 +119,7 @@ void loadRom(char *fn) {
 		// pad with 0x01 for Mine Storm II and Polar Rescue (and any
 		// other buggy game that reads outside its program space)
 		for (x = r; x < 32*1024; x++) {
-			romData[x] = 1;
+			romData[x] = 0x01;
 		}
 		xprintf("Padded remaining %d bytes of rom data with 0x01\n", x - r);
 		//Duplicate bank to upper bank
@@ -262,6 +262,35 @@ void loadSysOpt() {
 	for (int i = 0; i < size; i++) {
 		menuData[0xff0 + i] = sysData[addr + i];
 		xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
+	}
+}
+
+// This function to be used by games (cartData)
+// Dump the data in hex bytes from starting address to ending address specified
+// $7ff0 - Start Address High Byte
+// $7ff1 - Start Address Low  Byte
+// $7ff2 -   End Address High Byte
+// $7ff3 -   End Address Low  Byte
+// data output on TX pin in table format, use with RAM WRITE app for debugging
+void dumpMemory() {
+	// int start_addr = 0x1fe0; // hard code if desired
+	// int end_addr = 0x281f;   // hard code if desired
+	int start_addr = ((int)parmRam[0xf0] << 8) + (int)parmRam[0xf1];
+	int end_addr = ((int)parmRam[0xf2] << 8) + (int)parmRam[0xf3];
+	int current_addr = start_addr;
+	xprintf("ADDR | 0001 0203 0405 0607 0809 0A0B 0C0D 0E0F 1011 1213 1415 1617 1819 1A1B 1C1D 1E1F\n");
+	xprintf("==== | ===============================================================================\n");
+	while ( current_addr <= end_addr ) {
+		xprintf("%04x | ", current_addr);
+		for (int byte = 0; byte < 32; byte++) {
+			if (current_addr + byte > end_addr) break;
+			xprintf("%02x", cartData[current_addr + byte]);
+			if (((byte+1) % 2) == 0 && byte != 31) {
+				xprintf(" ");
+			}
+		}
+		xprintf("\n");
+		current_addr += 32;
 	}
 }
 
@@ -410,6 +439,7 @@ void doHandleEvent(int data) {
 		case 10: doRamDisk(); break;
 		case 11: loadApp(); break;
 		case 12: loadSysOpt(); break;
+		case 13: dumpMemory(); break;
 	}
 }
 
