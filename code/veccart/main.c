@@ -520,9 +520,22 @@ int main(void) {
 	// used instead of systick_handler to prevent interrupts from disrupting romemu.S loop
 	dwt_enable_cycle_counter();
 
+#if HW_VER == 255
+    #error "USE_HW hardware version not specified, please specify e.g. USE_HW=v0.2 or USE_HW=v0.3"
+#endif
+
 	// TODO: load new options from VEXTREME/options.txt in key=val format
 	sys_opt.size = sizeof(sys_opt);
 	sys_opt.ver = 1;
+// #if (HW_VER == 1)
+// 	sys_opt.hw_ver = 0x000A; // v0.10
+// #elif (HW_VER == 2)
+// 	sys_opt.hw_ver = 0x0014; // v0.20
+// #elif (HW_VER == 3)
+// 	sys_opt.hw_ver = 0x001e; // v0.30
+// #endif
+	// For now, this is hard coded to determine LED operation, nothing more.
+	// TODO: uncomment above for system hw_ver, and add .led_hw_ver for LED initialization.
 	sys_opt.hw_ver = 0x0014; // v0.20
 	sys_opt.sw_ver = 0x0018; // v0.24
 	sys_opt.rgb_type = RGB_TYPE_10;
