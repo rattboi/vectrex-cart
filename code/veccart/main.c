@@ -551,7 +551,7 @@ int main(void) {
 		if (sys_opt.rgb_type == RGB_TYPE_10) {
 			xprintf("RGB_TYPE_10\n");
 			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
-			ledsSetBrightness(150); // be careful not to set this too high when using white, those LEDs draw some power!!
+			ledsSetBrightness(50); // be careful not to set this too high when using white, those LEDs draw some power!!
 		} else if (sys_opt.rgb_type == RGB_TYPE_4) {
 			xprintf("RGB_TYPE_4\n");
 			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
