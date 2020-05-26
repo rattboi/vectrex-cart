@@ -1,19 +1,27 @@
-/*
- *  Copyright (C) 2015 Jeroen Domburg <jeroen at spritesmods.com>
- *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this library.  If not, see <http://www.gnu.org/licenses/>.
- */
+/***************************************************************************
+  Copyright (C) 2020 Brett Walach <technobly at gmail.com>
+  --------------------------------------------------------------------------
+  VEXTREME main.c
+
+  The magic starts here!
+
+  Original header follows:
+  --------------------------------------------------------------------------
+  Copyright (C) 2015 Jeroen Domburg <jeroen at spritesmods.com>
+
+  This library is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This library is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with this library.  If not, see <http://www.gnu.org/licenses/>.
+  *************************************************************************/
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/syscfg.h>
@@ -111,7 +119,7 @@ void loadRom(char *fn) {
 		// pad with 0x01 for Mine Storm II and Polar Rescue (and any
 		// other buggy game that reads outside its program space)
 		for (x = r; x < 32*1024; x++) {
-			romData[x] = 1;
+			romData[x] = 0x01;
 		}
 		xprintf("Padded remaining %d bytes of rom data with 0x01\n", x - r);
 		//Duplicate bank to upper bank
@@ -254,6 +262,35 @@ void loadSysOpt() {
 	for (int i = 0; i < size; i++) {
 		menuData[0xff0 + i] = sysData[addr + i];
 		xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
+	}
+}
+
+// This function to be used by games (cartData)
+// Dump the data in hex bytes from starting address to ending address specified
+// $7ff0 - Start Address High Byte
+// $7ff1 - Start Address Low  Byte
+// $7ff2 -   End Address High Byte
+// $7ff3 -   End Address Low  Byte
+// data output on TX pin in table format, use with RAM WRITE app for debugging
+void dumpMemory() {
+	// int start_addr = 0x1fe0; // hard code if desired
+	// int end_addr = 0x281f;   // hard code if desired
+	int start_addr = ((int)parmRam[0xf0] << 8) + (int)parmRam[0xf1];
+	int end_addr = ((int)parmRam[0xf2] << 8) + (int)parmRam[0xf3];
+	int current_addr = start_addr;
+	xprintf("ADDR | 0001 0203 0405 0607 0809 0A0B 0C0D 0E0F 1011 1213 1415 1617 1819 1A1B 1C1D 1E1F\n");
+	xprintf("==== | ===============================================================================\n");
+	while ( current_addr <= end_addr ) {
+		xprintf("%04x | ", current_addr);
+		for (int byte = 0; byte < 32; byte++) {
+			if (current_addr + byte > end_addr) break;
+			xprintf("%02x", cartData[current_addr + byte]);
+			if (((byte+1) % 2) == 0 && byte != 31) {
+				xprintf(" ");
+			}
+		}
+		xprintf("\n");
+		current_addr += 32;
 	}
 }
 
@@ -402,6 +439,7 @@ void doHandleEvent(int data) {
 		case 10: doRamDisk(); break;
 		case 11: loadApp(); break;
 		case 12: loadSysOpt(); break;
+		case 13: dumpMemory(); break;
 	}
 }
 
@@ -482,9 +520,22 @@ int main(void) {
 	// used instead of systick_handler to prevent interrupts from disrupting romemu.S loop
 	dwt_enable_cycle_counter();
 
+#if HW_VER == 255
+    #error "USE_HW hardware version not specified, please specify e.g. USE_HW=v0.2 or USE_HW=v0.3"
+#endif
+
 	// TODO: load new options from VEXTREME/options.txt in key=val format
 	sys_opt.size = sizeof(sys_opt);
 	sys_opt.ver = 1;
+// #if (HW_VER == 1)
+// 	sys_opt.hw_ver = 0x000A; // v0.10
+// #elif (HW_VER == 2)
+// 	sys_opt.hw_ver = 0x0014; // v0.20
+// #elif (HW_VER == 3)
+// 	sys_opt.hw_ver = 0x001e; // v0.30
+// #endif
+	// For now, this is hard coded to determine LED operation, nothing more.
+	// TODO: uncomment above for system hw_ver, and add .led_hw_ver for LED initialization.
 	sys_opt.hw_ver = 0x0014; // v0.20
 	sys_opt.sw_ver = 0x0018; // v0.24
 	sys_opt.rgb_type = RGB_TYPE_10;

@@ -21,5 +21,6 @@ void ledsCyan(void);
 void ledsMagenta(void);
 void ledsOff(void);
 void loadSysOpt(void);
+void dumpMemory(void);
 
 #endif
