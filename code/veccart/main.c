@@ -423,7 +423,7 @@ void doRamDisk() {
 
 // Handle an RPC event
 void doHandleEvent(int data) {
-	xprintf("[E:%d,A:%02X]\n", data, (int)parmRam[254]);
+	// xprintf("[E:%d,A:%02X]\n", data, (int)parmRam[254]);
 	switch (data) {
 		default:
 		case 0: break;
