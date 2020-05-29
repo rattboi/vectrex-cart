@@ -11,7 +11,7 @@
 //Get a listing of the roms in the 'roms/' directory and
 //poke them into the menu cartridge space
 void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int strptrs, char *romData) {
-	char buff[30];
+	char buff[sizeof(listing->f_entry->fname)];
 	char *name;
 
 	int ptrpos = fnptrs;  // fixed location in multicart.bin for 512 filename pointers (from &ptrpos ~ &strpos)

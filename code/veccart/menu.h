@@ -3,7 +3,7 @@
 
 #include "fatfs/ff.h"
 
-#define MENU_TEXT_LEN 20
+#define MENU_TEXT_LEN 16
 
 typedef struct {
 	int is_dir;
