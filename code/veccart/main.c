@@ -139,13 +139,20 @@ void loadRom(char *fn) {
 		// the active game high score record.  If the game doesn't exist,
 		// then setup record to default values for high score and add the name.
 		// A NULL as the second param will use the default active pointer.
-		if (highScoreGet((const unsigned char *)&romData[0x11], NULL) != HIGH_SCORE_SUCCESS)
-		{
+		HighScoreRetVal hs_ret_val = highScoreGet((const unsigned char *)&romData[0x11], NULL);
+		if (hs_ret_val != HIGH_SCORE_SUCCESS) {
+			xprintf("highScoreGet failure: %d, creating default high score for: %s\n", hs_ret_val, fn);
 			// Set the active game record to defaults and change name to the current
 			// game we are loading. This will prepare it to be stored once we
-			// acquire a newscore from the game ROM running.
-			highScoreSetGameRecordToDefaults((const unsigned char *)&romData[0x11], NULL);
+			// acquire a new high score from the game ROM running.
+			hs_ret_val = highScoreSetGameRecordToDefaults((const unsigned char *)&romData[0x11], NULL);
+			if (hs_ret_val != HIGH_SCORE_SUCCESS) {
+				xprintf("highScoreSetGameRecordToDefaults failure: %d\n", hs_ret_val);
+			}
+		} else {
+			xprintf("highScoreGet success\n");
 		}
+
 
 		// Store high score towards the end of the menu data
 		menuData[0x0ff0] = pActiveGameData->maxScore[0];
@@ -313,7 +320,7 @@ void loadSysOpt() {
 	if (size > 15) size = 15; // limited to 15 for now
 	for (int i = 0; i < size; i++) {
 		menuData[0xff0 + i] = sysData[addr + i];
-		xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
+		// xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
 	}
 }
 

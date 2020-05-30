@@ -26,6 +26,17 @@
 
 #include "highscore.h"
 
+/**
+ * Set DEBUG_HIGHSCORE to 1 to enable highscore.c debugging, 0 to disable.
+ */
+#define DEBUG_HIGHSCORE (0)
+
+#if (DEBUG_HIGHSCORE == 1)
+    #define HS_XPRINTF(F, ...)  xprintf(F, ##__VA_ARGS__)
+#else
+    #define HS_XPRINTF(F, ...)
+#endif
+
 // Externs
 
 // Globals
@@ -36,9 +47,8 @@ static FRESULT fResult;     // Highscore file return results
 // Local variables
 static GameFileRecord activeGameData;
 
-// Global Varablies
+// Global variables
 GameFileRecord * pActiveGameData = &activeGameData;
-
 
 // Local functions
 static int highScoreGetFileNameSize(const unsigned char * pString);
@@ -49,7 +59,6 @@ static int highScoreGetFileNameSize(const unsigned char * pString);
  */
 FRESULT highScoreOpenFile(void)
 {
-    // Create/Open highscore file
     fResult = f_open(&fileHighScore, "/hs.bin", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
 
     return fResult;
@@ -60,7 +69,7 @@ FRESULT highScoreOpenFile(void)
  * read the game record associated with the name and store it in the
  * location pointed to by the second parameter (pGameRecord).
  *
- * @param[in] - pGame - Points to a 0x80 terminated game name
+ * @param[in] - pGameName - Points to a 0x80 terminated game name
  * @param[out] - pGameRecord - Location to store game data record, or NULL
  *                             to store in out active game location
  *
@@ -79,6 +88,7 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
      */
     if (pGameName == NULL)
     {
+        HS_XPRINTF("ERROR: no game name pointer passed!\n");
         return (HIGH_SCORE_GAME_NAME_INVALID_PTR);
     }
 
@@ -87,7 +97,12 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
      */
     if (fResult != FR_OK)
     {
-        return (HIGH_SCORE_FILE_OPEN_FAIL);
+        // Try again!
+        HS_XPRINTF("ERROR: retrying hs.bin file open!\n");
+        fResult = highScoreOpenFile();
+        if (fResult != FR_OK) {
+            return (HIGH_SCORE_FILE_OPEN_FAIL);
+        }
     }
 
     /**
@@ -100,6 +115,7 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
      */
     if (gameNameSize == 0)
     {
+        HS_XPRINTF("ERROR: zero size game name!\n");
         return (HIGH_SCORE_GAME_NAME_SIZE_ZERO);
     }
 
@@ -108,6 +124,7 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
      */
     if (gameNameSize > (MAX_GAME_NAME_SIZE - 1))
     {
+        HS_XPRINTF("ERROR: game name too long!\n");
         return (HIGH_SCORE_GAME_NAME_TOO_LONG);
     }
 
@@ -140,28 +157,31 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
          */
         if ((fResult != FR_OK) || (bytesRead == 0))
         {
+            HS_XPRINTF("ERROR: f_read(): %u bytesRead: %u\n", fResult, bytesRead);
             exit = true;
         }
 
         /**
          * Compare passed in game name to game name read from file
          */
-        if ( (0 == strncmp((char *)pGameName, (char *)pGameRecord->name, gameNameSize))  &&
-         (exit == false) )
+        if (!exit)
         {
-            /**
-             * Move file pointer back to the beginning of the record for the
-             * game, to prepare writing of the new high score if it is beat.
-             */
-            f_lseek(&fileHighScore, f_tell(&fileHighScore) - sizeof(GameFileRecord));
+            if (0 == strncmp((char *)pGameName, (char *)pGameRecord->name, gameNameSize))
+            {
+                /**
+                 * Move file pointer back to the beginning of the record for the
+                 * game, to prepare writing of the new high score if it is beat.
+                 */
+                f_lseek(&fileHighScore, f_tell(&fileHighScore) - sizeof(GameFileRecord));
 
                 /**
-             * Found matching game
-             */
-            exit = true;
-            retVal = HIGH_SCORE_SUCCESS;
+                 * Found matching game
+                 */
+                exit = true;
+                retVal = HIGH_SCORE_SUCCESS;
+            }
         }
-    } while (exit == false);
+    } while (!exit);
 
     return retVal;
 }
@@ -183,6 +203,7 @@ HighScoreRetVal highScoreSetGameRecordToDefaults(const unsigned char * pGameName
      */
     if (pGameName == NULL)
     {
+        HS_XPRINTF("ERROR: no game name pointer passed!\n");
         return (HIGH_SCORE_GAME_NAME_INVALID_PTR);
     }
 
@@ -199,36 +220,43 @@ HighScoreRetVal highScoreSetGameRecordToDefaults(const unsigned char * pGameName
      * Calculate size of the 0x80 terminated string passed into function
      */
     int gameNameSize = highScoreGetFileNameSize(pGameName);
-
-    /**
-     * Exit if the game name passed to this function is larger than we allow
-     */
-    if (gameNameSize > (MAX_GAME_NAME_SIZE - 1))
-    {
-        return (HIGH_SCORE_GAME_NAME_TOO_LONG);
-    }
+    HS_XPRINTF("INFO: game name size: %d\n", gameNameSize);
 
     /**
      * Return failure if name of game is 0
      */
     if (gameNameSize == 0)
     {
+        HS_XPRINTF("ERROR: zero size game name!\n");
         return (HIGH_SCORE_GAME_NAME_SIZE_ZERO);
+    }
+
+    /**
+     * Exit if the game name passed to this function is larger than we allow
+     */
+    if (gameNameSize > (MAX_GAME_NAME_SIZE - 1))
+    {
+        HS_XPRINTF("ERROR: game name too long!\n");
+        return (HIGH_SCORE_GAME_NAME_TOO_LONG);
     }
 
     /**
      * Initialize the high score to default of zero
      */
-    strncpy((char *)pGameRecord->maxScore, defaultScore, MAX_GAME_SCORE_SIZE);
+    strncpy((char *)pGameRecord->maxScore, defaultScore, sizeof(defaultScore));
+    HS_XPRINTF("INFO: defaultScore size: %d\n", sizeof(defaultScore));
 
     /**
      * Move name into active game record name field, followed by a NULL byte
      */
+    HS_XPRINTF("Creating game high score record for: ");
     int count = 0;
     for (count = 0; (count < MAX_GAME_NAME_SIZE) && (count < gameNameSize); count++)
     {
         pGameRecord->name[count] = pGameName[count];
+        HS_XPRINTF("%c", pGameName[count]);
     }
+    HS_XPRINTF("\n");
 
     /**
      * NULL terminate the string for storing in our game records
@@ -281,22 +309,40 @@ void highScoreSave(unsigned char * pScore)
      * than the overall high score for this game stored in
      * the highScore file.
      */
-    HighScoreCompare retVal = highScoreCompare(pActiveGameData->maxScore, pScore);
+    HighScoreCompare compare_ret_val = highScoreCompare(pActiveGameData->maxScore, pScore);
+    HS_XPRINTF("highScoreCompare result: %d\n", compare_ret_val);
 
     /**
      * If the new score in pScore is greater than the current max score we read from
      * the file, then we need to update the active game data record with the new
      * high score so it will be saved to the file.
      */
-    if (retVal == HIGH_SCORE1_LESS_SCORE2)
+    if (compare_ret_val == HIGH_SCORE1_LESS_SCORE2)
     {
+        /**
+         * Print the "New high score! [GAME_NAME:SCORE]"
+         */
+        xprintf("New high score! [");
+        for (int count = 0; count < MAX_GAME_NAME_SIZE; count++)
+        {
+            if (pActiveGameData->name[count] == '\0') {
+                break;
+            }
+            xprintf("%c", pActiveGameData->name[count]);
+        }
+        xprintf(":");
+
         /**
          * Move new high score into global current game record
          */
         for (i = 0; i < (MAX_GAME_SCORE_SIZE - 1); i++)
         {
-           pActiveGameData->maxScore[i]  = pScore[i];
+            pActiveGameData->maxScore[i] = pScore[i];
+            if (pScore[i] != ' ') {
+                xprintf("%c", pScore[i]);
+            }
         }
+        xprintf("]\n");
 
         /**
          * Add '\0' to end of string
@@ -309,7 +355,9 @@ void highScoreSave(unsigned char * pScore)
          * of the file for a new game, or the beginning of the game
          * record where the update needs to happen.
          */
-        (void)highScoreStore(pActiveGameData);
+        HighScoreRetVal store_ret_val = highScoreStore(pActiveGameData);
+        HS_XPRINTF("highScoreStore result: %d\n", store_ret_val);
+        (void) store_ret_val;
     }
 }
 
@@ -383,14 +431,19 @@ HighScoreCompare highScoreCompare(const unsigned char * pScore1, const unsigned 
     {
         if (pScore1[i] < pScore2[i])
         {
+            HS_XPRINTF("INFO: new high score!\n");
             retVal = HIGH_SCORE1_LESS_SCORE2;
             break;
         }
         else if (pScore2[i] < pScore1[i])
         {
+            HS_XPRINTF("INFO: stored score > new score\n");
             retVal = HIGH_SCORE2_LESS_SCORE1;
             break;
         }
+    }
+    if (retVal == HIGH_SCORES_EQUAL) {
+        HS_XPRINTF("INFO: stored score == new score\n");
     }
     return (retVal);
 }
