@@ -106,7 +106,7 @@ HighScoreRetVal highScoreGet(const unsigned char * pGameName, GameFileRecord * p
     /**
      * Exit if the game name passed to this function is larger than we allow
      */
-    if (gameNameSize > (MAX_GAME_NAME_SIZE))
+    if (gameNameSize > (MAX_GAME_NAME_SIZE - 1))
     {
         return (HIGH_SCORE_GAME_NAME_TOO_LONG);
     }
@@ -254,15 +254,15 @@ HighScoreRetVal highScoreSetGameRecordToDefaults(const unsigned char * pGameName
 static int highScoreGetFileNameSize(const unsigned char * pString)
 {
     int count = 0;
-
-    for (count = 0; count < MAX_GAME_NAME_SIZE; count++)
+    // Iterate to (MAX_GAME_NAME_SIZE - 1) since Vectrex doesn't null terminate
+    for (count = 0; count < (MAX_GAME_NAME_SIZE - 1); count++)
     {
         if (pString[count] == 0x80)
         {
-            break;
+            return count;
         }
     }
-    return count;
+    return MAX_GAME_NAME_SIZE;
 }
 
 /**
