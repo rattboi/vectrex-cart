@@ -22,5 +22,6 @@ void ledsMagenta(void);
 void ledsOff(void);
 void loadSysOpt(void);
 void dumpMemory(void);
+void loadParmRam(void);
 
 #endif

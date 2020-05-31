@@ -162,7 +162,7 @@ void loadRom(char *fn) {
 		menuData[0x0ff4] = pActiveGameData->maxScore[4];
 		menuData[0x0ff5] = pActiveGameData->maxScore[5];
 		menuData[0x0ff6] = 0x80;
-		menuData[0x0ff7] = 0x77;
+		parmRam[0xe0] = 0x77; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
 
 		// Don't start game yet, stay in menu so that the VEXTREME menu
 		// can read and store the high score
@@ -184,6 +184,7 @@ void loadRom(char *fn) {
 			*ptr4++ = '0' + (sys_opt.sw_ver & 0xFF) / 10;
 			*ptr4   = '0' + (sys_opt.sw_ver & 0xFF) % 10;
 		}
+		parmRam[0xe0] = 0x66; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
 	}
 	f_close(&f);
 }
@@ -321,6 +322,21 @@ void loadSysOpt() {
 	for (int i = 0; i < size; i++) {
 		menuData[0xff0 + i] = sysData[addr + i];
 		// xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
+	}
+}
+
+// This function to be used by the Menu (multcart.asm)
+// Load parmRam data starting at address specified, up to 15 bytes specified by size.
+// addr = $7ffd
+// size = $7ffe
+// data returned in $fe0 ~ $fe0+size
+void loadParmRam() {
+	int addr = (int)parmRam[0xfd];
+	int size = (int)parmRam[0xfe];
+	if (size > 16) size = 16; // limited to 15 for now
+	for (int i = 0; i < size; i++) {
+		menuData[0xfe0 + i] = parmRam[addr + i];
+		// xprintf("parmRam[%x]=%u\n", addr + i, sysData[addr + i]);
 	}
 }
 
@@ -504,6 +520,7 @@ void doHandleEvent(int data) {
 		case 13: dumpMemory(); break;
 		case 14: highScoreSave(&parmRam[0]); break;
 		case 15: doStartRom(); break; // Finishes changing ROM
+		case 16: loadParmRam(); break;
 	}
 }
 
