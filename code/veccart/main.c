@@ -97,11 +97,14 @@ void uart_output_func(unsigned char c){
 	USART_DR(USART1) = (uint16_t) c & 0xff;
 }
 
-//Asm function
+// Asm function
 extern void romemu(void);
 
-//Load a ROM into cartridge memory
+// Load a ROM into cartridge memory
 void loadRom(char *fn) {
+	loadRomWithHighScore(fn, false); // by default, do not load high score mode
+}
+void loadRomWithHighScore(char *fn, bool load_hs_mode) {
 	FIL f;
 	FRESULT fr;
 	UINT r = 0;
@@ -135,38 +138,39 @@ void loadRom(char *fn) {
 			romData[n+32*1024] = romData[n];
 		}
 
-		// Search for game in highscore file and if it exists read it into
-		// the active game high score record.  If the game doesn't exist,
-		// then setup record to default values for high score and add the name.
-		// A NULL as the second param will use the default active pointer.
-		HighScoreRetVal hs_ret_val = highScoreGet((const unsigned char *)&romData[0x11], NULL);
-		if (hs_ret_val != HIGH_SCORE_SUCCESS) {
-			xprintf("highScoreGet failure: %d, creating default high score for: %s\n", hs_ret_val, fn);
-			// Set the active game record to defaults and change name to the current
-			// game we are loading. This will prepare it to be stored once we
-			// acquire a new high score from the game ROM running.
-			hs_ret_val = highScoreSetGameRecordToDefaults((const unsigned char *)&romData[0x11], NULL);
+		if (load_hs_mode) {
+			// Search for game in highscore file and if it exists read it into
+			// the active game high score record.  If the game doesn't exist,
+			// then setup record to default values for high score and add the name.
+			// A NULL as the second param will use the default active pointer.
+			HighScoreRetVal hs_ret_val = highScoreGet((const unsigned char *)&romData[0x11], NULL);
 			if (hs_ret_val != HIGH_SCORE_SUCCESS) {
-				xprintf("highScoreSetGameRecordToDefaults failure: %d\n", hs_ret_val);
+				xprintf("highScoreGet failure: %d, creating default high score for: %s\n", hs_ret_val, fn);
+				// Set the active game record to defaults and change name to the current
+				// game we are loading. This will prepare it to be stored once we
+				// acquire a new high score from the game ROM running.
+				hs_ret_val = highScoreSetGameRecordToDefaults((const unsigned char *)&romData[0x11], NULL);
+				if (hs_ret_val != HIGH_SCORE_SUCCESS) {
+					xprintf("highScoreSetGameRecordToDefaults failure: %d\n", hs_ret_val);
+				}
+			} else {
+				xprintf("highScoreGet success\n");
 			}
-		} else {
-			xprintf("highScoreGet success\n");
-		}
 
+			// Store high score towards the end of the menu data
+			menuData[0x0ff0] = pActiveGameData->maxScore[0];
+			menuData[0x0ff1] = pActiveGameData->maxScore[1];
+			menuData[0x0ff2] = pActiveGameData->maxScore[2];
+			menuData[0x0ff3] = pActiveGameData->maxScore[3];
+			menuData[0x0ff4] = pActiveGameData->maxScore[4];
+			menuData[0x0ff5] = pActiveGameData->maxScore[5];
+			menuData[0x0ff6] = 0x80;
+			parmRam[0xe0] = 0x77; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
 
-		// Store high score towards the end of the menu data
-		menuData[0x0ff0] = pActiveGameData->maxScore[0];
-		menuData[0x0ff1] = pActiveGameData->maxScore[1];
-		menuData[0x0ff2] = pActiveGameData->maxScore[2];
-		menuData[0x0ff3] = pActiveGameData->maxScore[3];
-		menuData[0x0ff4] = pActiveGameData->maxScore[4];
-		menuData[0x0ff5] = pActiveGameData->maxScore[5];
-		menuData[0x0ff6] = 0x80;
-		parmRam[0xe0] = 0x77; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
-
-		// Don't start game yet, stay in menu so that the VEXTREME menu
-		// can read and store the high score
-		romData = menuData;
+			// Don't start game yet, stay in menu so that the VEXTREME menu
+			// can read and store the high score
+			romData = menuData;
+		} // end if (load_hs_mode)
 	}
 	// It's the menu, patch in the HW/SW versions
 	else if (romData == menuData) {
@@ -184,7 +188,9 @@ void loadRom(char *fn) {
 			*ptr4++ = '0' + (sys_opt.sw_ver & 0xFF) / 10;
 			*ptr4   = '0' + (sys_opt.sw_ver & 0xFF) % 10;
 		}
-		parmRam[0xe0] = 0x66; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
+		if (load_hs_mode) {
+			parmRam[0xe0] = 0x66; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
+		}
 	}
 	f_close(&f);
 }
@@ -252,7 +258,7 @@ void doChangeRom(char* basedir, int i) {
 
 		romData=c_and_l.cartData;
 		xprintf("Going to read rom image %s\n", buff);
-		loadRom(buff);
+		loadRomWithHighScore(buff, true);
 	}
 }
 
