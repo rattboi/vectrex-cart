@@ -3,6 +3,7 @@
 
 void uart_output_func(unsigned char c);
 void loadRom(char *fn);
+void loadRomWithHighScore(char *fn, bool load_hs_mode);
 void loadStreamData(int addr, int len);
 void doUpDir(void);
 void doChangeDir(char* dirname);
@@ -22,5 +23,6 @@ void ledsMagenta(void);
 void ledsOff(void);
 void loadSysOpt(void);
 void dumpMemory(void);
+void loadParmRam(void);
 
 #endif

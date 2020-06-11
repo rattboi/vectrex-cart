@@ -41,10 +41,15 @@
 #include "main.h"
 #include "menu.h"
 #include "msc.h"
+#include "highscore.h"
+// #include "flash.h"
 
 //#include "rom.h"
 #include "xprintf.h"
 #include "fatfs/ff.h"
+
+// Externs
+extern GameFileRecord* pActiveGameData;
 
 //Memory for the menu ROM and the running cartridge.
 //We keep both in memory so we can quickly exchange them when a reset has been detected.
@@ -55,6 +60,7 @@ char* romData = menuData;
 unsigned char parmRam[256];
 
 char menuDir[_MAX_LFN + 1];
+static bool isItemAFile = false; // Default to being a directory and not a file
 
 union cart_and_listing {
 	dir_listing listing;
@@ -80,6 +86,8 @@ USBPWR - PA9
 
 #define SYSCFG_MEMRMP			MMIO32(SYSCFG_BASE + 0x00)
 
+// Local functions
+static void doStartRom(void);
 
 void uart_output_func(unsigned char c){
 	uint32_t reg;
@@ -89,11 +97,14 @@ void uart_output_func(unsigned char c){
 	USART_DR(USART1) = (uint16_t) c & 0xff;
 }
 
-//Asm function
+// Asm function
 extern void romemu(void);
 
-//Load a ROM into cartridge memory
+// Load a ROM into cartridge memory
 void loadRom(char *fn) {
+	loadRomWithHighScore(fn, false); // by default, do not load high score mode
+}
+void loadRomWithHighScore(char *fn, bool load_hs_mode) {
 	FIL f;
 	FRESULT fr;
 	UINT r = 0;
@@ -126,6 +137,40 @@ void loadRom(char *fn) {
 		for (n = 0; n < 32*1024; n++) {
 			romData[n+32*1024] = romData[n];
 		}
+
+		if (load_hs_mode) {
+			// Search for game in highscore file and if it exists read it into
+			// the active game high score record.  If the game doesn't exist,
+			// then setup record to default values for high score and add the name.
+			// A NULL as the second param will use the default active pointer.
+			HighScoreRetVal hs_ret_val = highScoreGet((const unsigned char *)&romData[0x11], NULL);
+			if (hs_ret_val != HIGH_SCORE_SUCCESS) {
+				xprintf("highScoreGet failure: %d, creating default high score for: %s\n", hs_ret_val, fn);
+				// Set the active game record to defaults and change name to the current
+				// game we are loading. This will prepare it to be stored once we
+				// acquire a new high score from the game ROM running.
+				hs_ret_val = highScoreSetGameRecordToDefaults((const unsigned char *)&romData[0x11], NULL);
+				if (hs_ret_val != HIGH_SCORE_SUCCESS) {
+					xprintf("highScoreSetGameRecordToDefaults failure: %d\n", hs_ret_val);
+				}
+			} else {
+				xprintf("highScoreGet success\n");
+			}
+
+			// Store high score towards the end of the menu data
+			menuData[0x0ff0] = pActiveGameData->maxScore[0];
+			menuData[0x0ff1] = pActiveGameData->maxScore[1];
+			menuData[0x0ff2] = pActiveGameData->maxScore[2];
+			menuData[0x0ff3] = pActiveGameData->maxScore[3];
+			menuData[0x0ff4] = pActiveGameData->maxScore[4];
+			menuData[0x0ff5] = pActiveGameData->maxScore[5];
+			menuData[0x0ff6] = 0x80;
+			parmRam[0xe0] = 0x77; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
+
+			// Don't start game yet, stay in menu so that the VEXTREME menu
+			// can read and store the high score
+			romData = menuData;
+		} // end if (load_hs_mode)
 	}
 	// It's the menu, patch in the HW/SW versions
 	else if (romData == menuData) {
@@ -142,6 +187,9 @@ void loadRom(char *fn) {
 			*ptr3   = '0' + (sys_opt.sw_ver >> 8) % 10;
 			*ptr4++ = '0' + (sys_opt.sw_ver & 0xFF) / 10;
 			*ptr4   = '0' + (sys_opt.sw_ver & 0xFF) % 10;
+		}
+		if (load_hs_mode) {
+			parmRam[0xe0] = 0x66; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
 		}
 	}
 	f_close(&f);
@@ -165,8 +213,9 @@ void loadStreamData(int addr, int len) {
 }
 
 void doUpDir() {
-  if (strcmp(menuDir, "/roms") != 0)
-    doChangeDir("..");
+	if (strcmp(menuDir, "/roms") != 0) {
+		doChangeDir("..");
+	}
 }
 
 void doChangeDir(char* dirname) {
@@ -187,7 +236,10 @@ void doChangeDir(char* dirname) {
 	xprintf("Done listing for : %s\n", menuDir);
 }
 
-//User has made a selection in the cart menu (chose the i'th item) so now we have to load the cartridge.
+/**
+ * User has made a selection in the cart menu (chose the i'th item)
+ * so now we have to load the ROM or Directory
+ */
 void doChangeRom(char* basedir, int i) {
 	char buff[300];
 
@@ -197,14 +249,28 @@ void doChangeRom(char* basedir, int i) {
 	file_entry f = c_and_l.listing.f_entry[i];
 
 	if (f.is_dir) {
+		isItemAFile = false;
 		doChangeDir(f.fname);
-	} else {													/* It is a file. */
+	} else {
+		isItemAFile = true;
 		xprintf("Adding filename [%s] to path\n", f.fname);
 		xsprintf(buff, "%s/%s", basedir, f.fname);
 
 		romData=c_and_l.cartData;
 		xprintf("Going to read rom image %s\n", buff);
-		loadRom(buff);
+		loadRomWithHighScore(buff, true);
+	}
+}
+
+/**
+ * Point romData to the cartData or menuData based on what was last loaded
+ * in doChangeRom() and return.
+ */
+static void doStartRom(void) {
+	if (isItemAFile == true) {
+		romData = c_and_l.cartData;
+	} else {
+		romData = menuData;
 	}
 }
 
@@ -261,7 +327,22 @@ void loadSysOpt() {
 	if (size > 15) size = 15; // limited to 15 for now
 	for (int i = 0; i < size; i++) {
 		menuData[0xff0 + i] = sysData[addr + i];
-		xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
+		// xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
+	}
+}
+
+// This function to be used by the Menu (multcart.asm)
+// Load parmRam data starting at address specified, up to 15 bytes specified by size.
+// addr = $7ffd
+// size = $7ffe
+// data returned in $fe0 ~ $fe0+size
+void loadParmRam() {
+	int addr = (int)parmRam[0xfd];
+	int size = (int)parmRam[0xfe];
+	if (size > 16) size = 16; // limited to 15 for now
+	for (int i = 0; i < size; i++) {
+		menuData[0xfe0 + i] = parmRam[addr + i];
+		// xprintf("parmRam[%x]=%u\n", addr + i, sysData[addr + i]);
 	}
 }
 
@@ -398,6 +479,8 @@ void doRamDisk() {
 		} else {
 			xprintf("Sorry, didn't find /cart.bin\n");
 			sys_opt.usb_dev = USB_DEV_DISABLED;
+
+			(void) highScoreOpenFile(); // Create/Open highscore file
 			romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
 			loadRom("/multicart.bin");
 			loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
@@ -411,6 +494,7 @@ void doRamDisk() {
 			// xprintf("f_unlink result: %d\n", f_unlink_res);
 		}
 
+		(void) highScoreOpenFile(); // Create/Open highscore file
 		sys_opt.usb_dev = USB_DEV_DISABLED;
 		romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
 		loadRom("/multicart.bin");
@@ -427,7 +511,7 @@ void doHandleEvent(int data) {
 	switch (data) {
 		default:
 		case 0: break;
-		case 1: doChangeRom(menuDir, (int)parmRam[254]); break;
+		case 1: doChangeRom(menuDir, (int)parmRam[254]); break; // Starts changing ROM
 		case 2: loadStreamData(0x4000, 1024+512); break;
 		case 3: doUpDir(); break;
 		case 4: updateAll(); break;
@@ -440,6 +524,9 @@ void doHandleEvent(int data) {
 		case 11: loadApp(); break;
 		case 12: loadSysOpt(); break;
 		case 13: dumpMemory(); break;
+		case 14: highScoreSave(&parmRam[0]); break;
+		case 15: doStartRom(); break; // Finishes changing ROM
+		case 16: loadParmRam(); break;
 	}
 }
 
@@ -521,7 +608,7 @@ int main(void) {
 	dwt_enable_cycle_counter();
 
 #if HW_VER == 255
-    #error "USE_HW hardware version not specified, please specify e.g. USE_HW=v0.2 or USE_HW=v0.3"
+	#error "USE_HW hardware version not specified, please specify e.g. USE_HW=v0.2 or USE_HW=v0.3"
 #endif
 
 	// TODO: load new options from VEXTREME/options.txt in key=val format
@@ -626,6 +713,10 @@ int main(void) {
 	// FRESULT f_mount_res;
 	f_mount(&FatFs, "", 0);
 	// xprintf("f_mount result: %d\n", f_mount_res);
+
+	// Create/Open highscore file
+	// Ignore return value for now
+	(void) highScoreOpenFile();
 
 	// Load the Menu
 	romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
