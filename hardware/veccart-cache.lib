@@ -212,6 +212,9 @@ F2 "" 0 0 50 H I C CNN
 F3 "" 0 0 50 H I C CNN
 $FPLIST
  SolderJumper*Open*
+ Jumper*
+ TestPoint*2Pads*
+ TestPoint*Bridge*
 $ENDFPLIST
 DRAW
 C -40 0 20 0 1 0 N
@@ -234,9 +237,9 @@ $FPLIST
  LED_THT:*
 $ENDFPLIST
 DRAW
-P 2 0 1 8 -50 -50 -50 50 N
+P 2 0 1 10 -50 -50 -50 50 N
 P 2 0 1 0 -50 0 50 0 N
-P 4 0 1 8 50 -50 50 50 -50 0 50 -50 N
+P 4 0 1 10 50 -50 50 50 -50 0 50 -50 N
 P 5 0 1 0 -120 -30 -180 -90 -150 -90 -180 -90 -180 -60 N
 P 5 0 1 0 -70 -30 -130 -90 -100 -90 -130 -90 -130 -60 N
 X K 1 -150 0 100 R 50 50 1 1 P
@@ -268,14 +271,14 @@ F0 "D" 0 100 50 H V C CNN
 F1 "Diode_MBR0520" 0 -100 50 H V C CNN
 F2 "Diode_SMD:D_SOD-123" 0 -175 50 H I C CNN
 F3 "" 0 0 50 H I C CNN
-ALIAS MBR0520LT MBR0520 MBR0530 MBR0540 MBR0550 MBR0560 MBR0570 MBR0580 BAT42W-V BAT43W-V PMEG6010CEH
+ALIAS MBR0520LT MBR0520 MBR0530 MBR0540 MBR0550 MBR0560 MBR0570 MBR0580 BAT42W-V BAT43W-V
 $FPLIST
  D*SOD?123*
 $ENDFPLIST
 DRAW
 P 2 0 1 0 50 0 -50 0 N
-P 4 0 1 8 50 50 50 -50 -50 0 50 50 N
-P 6 0 1 8 -75 25 -75 50 -50 50 -50 -50 -25 -50 -25 -25 N
+P 4 0 1 10 50 50 50 -50 -50 0 50 50 N
+P 6 0 1 10 -75 25 -75 50 -50 50 -50 -50 -25 -50 -25 -25 N
 X K 1 -150 0 100 R 50 50 1 1 P
 X A 2 150 0 100 L 50 50 1 1 P
 ENDDRAW
@@ -503,11 +506,11 @@ X GND 1 0 0 0 D 50 50 1 1 W N
 ENDDRAW
 ENDDEF
 #
-# veccart-rescue_+5V
+# veccart-rescue_+5V-veccart-rescue
 #
-DEF veccart-rescue_+5V #PWR 0 0 Y Y 1 F P
+DEF veccart-rescue_+5V-veccart-rescue #PWR 0 0 Y Y 1 F P
 F0 "#PWR" 0 -150 50 H I C CNN
-F1 "veccart-rescue_+5V" 0 140 50 H V C CNN
+F1 "veccart-rescue_+5V-veccart-rescue" 0 140 50 H V C CNN
 F2 "" 0 0 50 H I C CNN
 F3 "" 0 0 50 H I C CNN
 DRAW
@@ -518,11 +521,11 @@ X +5V 1 0 0 0 U 50 50 1 1 W N
 ENDDRAW
 ENDDEF
 #
-# veccart-rescue_GND
+# veccart-rescue_GND-veccart-rescue
 #
-DEF veccart-rescue_GND #PWR 0 0 Y Y 1 F P
+DEF veccart-rescue_GND-veccart-rescue #PWR 0 0 Y Y 1 F P
 F0 "#PWR" 0 -250 50 H I C CNN
-F1 "veccart-rescue_GND" 0 -150 50 H V C CNN
+F1 "veccart-rescue_GND-veccart-rescue" 0 -150 50 H V C CNN
 F2 "" 0 0 50 H I C CNN
 F3 "" 0 0 50 H I C CNN
 DRAW
@@ -531,11 +534,11 @@ X GND 1 0 0 0 D 50 50 1 1 W N
 ENDDRAW
 ENDDEF
 #
-# veccart-rescue_vectrex-edge-connector
+# veccart-rescue_vectrex-edge-connector-veccart-rescue
 #
-DEF veccart-rescue_vectrex-edge-connector CON 0 40 Y Y 1 F N
+DEF veccart-rescue_vectrex-edge-connector-veccart-rescue CON 0 40 Y Y 1 F N
 F0 "CON" 400 -1600 60 H V C CNN
-F1 "veccart-rescue_vectrex-edge-connector" -800 1950 60 H V C CNN
+F1 "veccart-rescue_vectrex-edge-connector-veccart-rescue" -800 1950 60 H V C CNN
 F2 "" 0 700 60 H I C CNN
 F3 "" 0 700 60 H I C CNN
 DRAW
