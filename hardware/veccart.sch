@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "VEXTREME Vectrex Multicart"
 Date "2019-12-01"
-Rev "v0.2"
+Rev "v0.3"
 Comp ""
 Comment1 ""
 Comment2 ""
@@ -1366,8 +1366,8 @@ Wire Wire Line
 Connection ~ 6700 6500
 Wire Wire Line
 	6700 6500 6700 6300
-Text Notes 7650 4150 0    50   ~ 0
-v0.2 Changelog\n——————————————————————\n- Replaced USB-B-mini with USB-C and centered USB on cart\n- Extended the PCB by 1.7 mm to get the USB-C connector as close to the case\n   exterior as possible.\n- Widened the PCB to 48.0 mm so that there’s less side to side play in the cartridge slot.\n- Moved outer mounting holes into the proper locations\n- Reversed D3 and R4 order to get D3 closer to edge of the PCB, but it turned\n   out we added something else there!\n- Added 10 APA102-2020 addressable RGB LED lights (max. draw 245mA) …\n   qualify with USB-IN (PA9) for 100% brightness, else 50%\n- Added 47uF cap for peak currents required for RGB LEDs.\n- Added V-IRQ connection to PB9 for 128KB bank-switching\n- Grounded unused floating inputs on U3 to reduce current consumption\n- Adjusted Y1 to use 12pF load crystal resonator with 18pF load caps (see equation)\n- Lots of clean up and tweaking all over PCB\n- Added revision to PCB\n- Added “VEXTREME” to PCB\n- Added a ground pour under the STM32\n- Made the contacts on the edge connector thinner (1.52mm) and made sure they were\n   spaced properly (2.54mm).\n- Started moving footprints to the libs/veccart.pretty library so you know where they \n   will be!
+Text Notes 7700 2750 0    50   ~ 0
+v0.3 Changelog\n——————————————————————\n- Fixed PCB fingers (removed soldermask ink around fingers, made them 8.8mm\n   x 1.52mm, spaced 1.2mm from board edge, and 18.0mm from 3.6mm hole)\n- Increased hole sizes to 3.7mm, 4.2mm, 5.2mm\n- Made all pads on addressable LEDs the same size\n
 Text Notes 8000 900  0    50   ~ 0
 CL = (C8 * C9)/(C8 + C9) + Cstray\n(324pF/36pF) + 4pF = 13pF (close to 12pF Y1 CL requirement)\n
 $Comp
@@ -1476,7 +1476,7 @@ U 1 1 5E24CDA4
 P 10300 6000
 F 0 "D13" H 10150 6250 50  0000 C CNN
 F 1 "APA102-2020" H 10600 5750 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 10350 5700 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 10350 5700 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 10400 5625 50  0001 L TNN
 	1    10300 6000
 	1    0    0    -1  
@@ -1487,7 +1487,7 @@ U 1 1 5E247B3F
 P 9650 6000
 F 0 "D12" H 9500 6250 50  0000 C CNN
 F 1 "APA102-2020" H 9950 5750 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 9700 5700 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 9700 5700 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 9750 5625 50  0001 L TNN
 	1    9650 6000
 	1    0    0    -1  
@@ -1498,7 +1498,7 @@ U 1 1 5E241681
 P 9000 6000
 F 0 "D11" H 8850 6250 50  0000 C CNN
 F 1 "APA102-2020" H 9300 5750 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 9050 5700 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 9050 5700 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 9100 5625 50  0001 L TNN
 	1    9000 6000
 	1    0    0    -1  
@@ -1509,7 +1509,7 @@ U 1 1 5E23C8EC
 P 8350 6000
 F 0 "D10" H 8200 6250 50  0000 C CNN
 F 1 "APA102-2020" H 8650 5750 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 8400 5700 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 8400 5700 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 8450 5625 50  0001 L TNN
 	1    8350 6000
 	1    0    0    -1  
@@ -1520,7 +1520,7 @@ U 1 1 5E237D72
 P 7700 6000
 F 0 "D9" H 7550 6250 50  0000 C CNN
 F 1 "APA102-2020" H 8000 5750 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 7750 5700 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 7750 5700 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 7800 5625 50  0001 L TNN
 	1    7700 6000
 	1    0    0    -1  
@@ -1531,7 +1531,7 @@ U 1 1 5E232EF6
 P 10300 4950
 F 0 "D8" H 10150 5200 50  0000 C CNN
 F 1 "APA102-2020" H 10600 4700 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 10350 4650 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 10350 4650 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 10400 4575 50  0001 L TNN
 	1    10300 4950
 	1    0    0    -1  
@@ -1542,7 +1542,7 @@ U 1 1 5E22D727
 P 9650 4950
 F 0 "D7" H 9500 5200 50  0000 C CNN
 F 1 "APA102-2020" H 9950 4700 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 9700 4650 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 9700 4650 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 9750 4575 50  0001 L TNN
 	1    9650 4950
 	1    0    0    -1  
@@ -1553,7 +1553,7 @@ U 1 1 5E222AF7
 P 9000 4950
 F 0 "D6" H 8850 5200 50  0000 C CNN
 F 1 "APA102-2020" H 9300 4700 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 9050 4650 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 9050 4650 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 9100 4575 50  0001 L TNN
 	1    9000 4950
 	1    0    0    -1  
@@ -1564,7 +1564,7 @@ U 1 1 5E1CFFE3
 P 8350 4950
 F 0 "D5" H 8200 5200 50  0000 C CNN
 F 1 "APA102-2020" H 8650 4700 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 8400 4650 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 8400 4650 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 8450 4575 50  0001 L TNN
 	1    8350 4950
 	1    0    0    -1  
@@ -1586,7 +1586,7 @@ U 1 1 5E1BB363
 P 7700 4950
 F 0 "D4" H 7550 5200 50  0000 C CNN
 F 1 "APA102-2020" H 8000 4700 50  0000 C CNN
-F 2 "veccart:LED-APA102-2020_6" H 7750 4650 50  0001 L TNN
+F 2 "veccart:LED-APA102-2020_6_REV_2" H 7750 4650 50  0001 L TNN
 F 3 "http://www.led-color.com/upload/201604/APA102-2020%20SMD%20LED.pdf" H 7800 4575 50  0001 L TNN
 	1    7700 4950
 	1    0    0    -1  
