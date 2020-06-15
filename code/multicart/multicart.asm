@@ -176,11 +176,14 @@ check_hs_flag1                                            ;
                     bne      hs_exit                      ; No, skip saving high score to STM32, don't set to 0x66
 store_hs_in_parmram                                       ;
                     ldd      $cbeb                        ; Save high score
-                    std      $7f00                        ; |
+                    sta      $7f00                        ; |
+                    stb      $7f01                        ; |
                     ldd      $cbed                        ; |
-                    std      $7f02                        ; |
+                    sta      $7f02                        ; |
+                    stb      $7f03                        ; |
                     ldd      $cbef                        ; |
-                    std      $7f04                        ; |
+                    sta      $7f04                        ; |
+                    stb      $7f05                        ; |
                     lda      #14                          ; rpc call to saveHighScore()
                     ldx      #hs_return                   ; Load return point for jump instruction
                     jmp      rpcfn2                       ; Call
