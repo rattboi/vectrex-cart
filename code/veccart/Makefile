@@ -67,7 +67,7 @@ LDSCRIPT	= stm32f411rct6.ld
 #../libopencm3/lib/lib$(LIBNAME).ld
 
 LDFLAGS		+= --static -nostartfiles -L$(TOOLCHAIN_DIR)/lib  \
-		   -T$(LDSCRIPT) -Wl,--gc-sections -mthumb $(CFLAGS) -lm \
+		   -Xlinker -Map=$(BINARY).map -T$(LDSCRIPT) -Wl,--gc-sections -mthumb $(CFLAGS) -lm \
 			-Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group -l$(LIBNAME)
 
 #include libopencm3/ld/Makefile.linker
