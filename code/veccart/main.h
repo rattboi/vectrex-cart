@@ -2,8 +2,9 @@
 #define MAIN_H
 
 void uart_output_func(unsigned char c);
+void loadMenu(void);
 void loadRom(char *fn);
-void loadRomWithHighScore(char *fn, bool load_hs_mode);
+void loadRomWithHighScore(char *fn, bool load_hs_mode, bool use_embedded_menu);
 void loadStreamData(int addr, int len);
 void doUpDir(void);
 void doChangeDir(char* dirname);

@@ -50,6 +50,8 @@
 
 // Externs
 extern GameFileRecord* pActiveGameData;
+extern char multicart_start;
+extern char multicart_end;
 
 //Memory for the menu ROM and the running cartridge.
 //We keep both in memory so we can quickly exchange them when a reset has been detected.
@@ -73,6 +75,8 @@ char* cartData = c_and_l.cartData;
 system_options sys_opt;
 char* sysData = (char*)&sys_opt;
 uint8_t checkDevMode = 0;
+
+FILINFO cart_file_info;
 
 /*
 //Pinning:
@@ -101,12 +105,19 @@ void uart_output_func(unsigned char c){
 extern void romemu(void);
 
 // Load a ROM into cartridge memory
-void loadRom(char *fn) {
-	loadRomWithHighScore(fn, false); // by default, do not load high score mode
+void loadMenu() {
+  bool use_embedded_menu = (f_stat("/multicart.bin", &cart_file_info) != FR_OK);
+
+  loadRomWithHighScore("/multicart.bin", false, use_embedded_menu);
 }
-void loadRomWithHighScore(char *fn, bool load_hs_mode) {
+
+void loadRom(char *fn) {
+	loadRomWithHighScore(fn, false, false); // by default, do not load high score mode
+}
+
+void loadRomWithHighScore(char *fn, bool load_hs_mode, bool use_embedded_menu) {
 	FIL f;
-	FRESULT fr;
+	FRESULT fr = FR_NO_FILE; // assume no file, so we can test if we ever opened the file later
 	UINT r = 0;
 	int n;
 	UINT x;
@@ -117,14 +128,20 @@ void loadRomWithHighScore(char *fn, bool load_hs_mode) {
 		// loaded menu data
 		n = sizeof(menuData);
 	}
-	fr = f_open(&f, fn, FA_READ);
-	if (fr) {
-		xprintf("Error opening file: %d\n", fr);
+	if (romData == menuData && use_embedded_menu == true) {
+		xprintf("Copying %lu bytes of menu data... ", &multicart_end - &multicart_start);
+		memcpy(menuData, &multicart_start, &multicart_end - &multicart_start);
+		xprintf("OK!\n");
 	} else {
-		xprintf("Opened file: %s\n", fn);
+		fr = f_open(&f, fn, FA_READ);
+		if (fr) {
+			xprintf("Error opening file: %d\n", fr);
+		} else {
+			xprintf("Opened file: %s\n", fn);
+		}
+		f_read(&f, romData, 64*1024, &r);
+		xprintf("Read %d bytes of rom data.\n", r);
 	}
-	f_read(&f, romData, 64*1024, &r);
-	xprintf("Read %d bytes of rom data.\n", r);
 	// It's a game and it's <= 32KB
 	if (n > 32*1024 && r <= 32*1024) {
 		// pad with 0x01 for Mine Storm II and Polar Rescue (and any
@@ -192,7 +209,9 @@ void loadRomWithHighScore(char *fn, bool load_hs_mode) {
 			parmRam[0xe0] = 0x66; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
 		}
 	}
-	f_close(&f);
+	if (fr != FR_NO_FILE) {
+		f_close(&f);
+	}
 }
 
 //Stream data, for the Bad Apple demo
@@ -258,7 +277,7 @@ void doChangeRom(char* basedir, int i) {
 
 		romData=c_and_l.cartData;
 		xprintf("Going to read rom image %s\n", buff);
-		loadRomWithHighScore(buff, true);
+		loadRomWithHighScore(buff, true, false);
 	}
 }
 
@@ -409,7 +428,6 @@ void ledsOff() {
 }
 
 static FATFS FatFs;
-FILINFO cart_file_info;
 FIL cart_file;
 void doRamDisk() {
 	/**
@@ -482,7 +500,7 @@ void doRamDisk() {
 
 			(void) highScoreOpenFile(); // Create/Open highscore file
 			romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
-			loadRom("/multicart.bin");
+			loadMenu();
 			loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
 		}
 	} else if (sys_opt.usb_dev == USB_DEV_EXIT) {
@@ -497,7 +515,7 @@ void doRamDisk() {
 		(void) highScoreOpenFile(); // Create/Open highscore file
 		sys_opt.usb_dev = USB_DEV_DISABLED;
 		romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
-		loadRom("/multicart.bin");
+		loadMenu();
 		loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
 	}
 
@@ -720,7 +738,7 @@ int main(void) {
 
 	// Load the Menu
 	romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
-	loadRom("/multicart.bin");
+	loadMenu();
 	loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
 	sys_opt.usb_dev = USB_DEV_DISABLED;
 
