@@ -1,17 +1,14 @@
-FROM ubuntu:18.04
-LABEL Description="A clone of the i2c-tiny-usb based upon STM32 and libopencm3"          
+FROM archlinux:20200605
+LABEL Description="STM32 and libopencm3"
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -y -q \
-    && apt-get install -y -q sudo make python git-core \
-    && apt-get install -y -q software-properties-common \
-    && add-apt-repository ppa:team-gcc-arm-embedded/ppa \
-    && apt-get update 
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-arm-embedded
+RUN pacman -Syu --noconfirm \
+ && pacman -S make git python --noconfirm \
+ && pacman -S arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-newlib --noconfirm
 
 WORKDIR /build
 RUN git clone https://github.com/libopencm3/libopencm3.git \
     && cd libopencm3 \
-    && git checkout f7a952c41a815572622f137881af6160730a3768 \
-    && make
+    && git checkout 90753950bbe10e87b8caabfb0bd6e1d195bb24b8 \
+    && TARGETS=stm32/f4 make
 
 WORKDIR /build/veccart
