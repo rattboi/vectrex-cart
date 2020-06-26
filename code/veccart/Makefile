@@ -62,6 +62,7 @@ TOOLCHAIN_DIR=../libopencm3
 CFLAGS		+= -O3 -g -Wextra -Wshadow -Wimplicit-function-declaration -Wredundant-decls \
 		-Wmissing-prototypes -Wstrict-prototypes -fno-common -ffunction-sections -fdata-sections \
 		-MD -Wall -Wundef -I$(TOOLCHAIN_DIR)/include $(ARCH_FLAGS)
+ASFLAGS += $(ARCH_FLAGS)
 
 LDSCRIPT	= stm32f411rct6.ld
 #../libopencm3/lib/lib$(LIBNAME).ld
