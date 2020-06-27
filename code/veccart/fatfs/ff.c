@@ -1366,7 +1366,10 @@ void gen_numname (
 		ns[i--] = c;
 		seq /= 16;
 	} while (seq);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow="
 	ns[i] = '~';
+#pragma GCC diagnostic pop
 
 	/* Append the number */
 	for (j = 0; j < i && dst[j] != ' '; j++) {

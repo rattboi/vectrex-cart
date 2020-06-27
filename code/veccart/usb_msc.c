@@ -854,9 +854,9 @@ static void msc_data_tx_cb(usbd_device *usbd_dev, uint8_t ep)
 /** @brief Handle various control requests related to the msc storage
  *     interface.
  */
-static int msc_control_request(usbd_device *usbd_dev,
-                struct usb_setup_data *req, uint8_t **buf, uint16_t *len,
-                void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req))
+static enum usbd_request_return_codes msc_control_request(usbd_device *usbd_dev,
+    struct usb_setup_data *req, uint8_t **buf, uint16_t *len,
+    void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req))
 {
     (void)complete;
     (void)usbd_dev;
@@ -893,7 +893,7 @@ static void msc_set_config(usbd_device *usbd_dev, uint16_t wValue)
                 usbd_dev,
                 USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
                 USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
-                (usbd_control_callback) msc_control_request);
+                msc_control_request);
 }
 
 /** @addtogroup usb_msc */

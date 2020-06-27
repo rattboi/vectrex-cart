@@ -27,7 +27,8 @@ void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int s
 	for (idx = 0; idx < listing->num_files; idx++) {
 		f_entry=&(listing->f_entry[idx]);
 
-		strncpy(buff, f_entry->fname, sizeof(buff));
+		strncpy(buff, f_entry->fname, sizeof(buff)-1);
+		buff[sizeof(buff)-1] = '\0';
 		name=buff;
 
 		is_dir=f_entry->is_dir;

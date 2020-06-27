@@ -97,6 +97,7 @@ docker-build: Dockerfile
 docker:
 	docker run --rm -t -v `pwd`:/build/veccart -u `id -u ${USER}`:`id -g ${USER}` stm32-build make images $(HW_VER_ARGS)
 
+# '$ make bash' puts you in the docker container interactive shell for debugging
 bash:
 	docker run --rm -it -v `pwd`:/build/veccart -u `id -u ${USER}`:`id -g ${USER}` stm32-build bash
 
