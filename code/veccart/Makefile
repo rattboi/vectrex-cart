@@ -56,6 +56,7 @@ CC		= $(PREFIX)-gcc
 LD		= $(PREFIX)-gcc
 OBJCOPY	= $(PREFIX)-objcopy
 OBJDUMP	= $(PREFIX)-objdump
+
 # Uncomment this line if you want to use the installed (not local) library.
 #TOOLCHAIN_DIR = `dirname \`which $(CC)\``/../$(PREFIX)
 TOOLCHAIN_DIR=../libopencm3
@@ -96,6 +97,10 @@ docker-build: Dockerfile
 docker:
 	docker run --rm -t -v `pwd`:/build/veccart -u `id -u ${USER}`:`id -g ${USER}` stm32-build make images $(HW_VER_ARGS)
 
+bash:
+	docker run --rm -it -v `pwd`:/build/veccart -u `id -u ${USER}`:`id -g ${USER}` stm32-build bash
+
+
 images: $(BINARY).images
 flash: $(BINARY).flash
 
@@ -117,12 +122,20 @@ rom.o: rom.inc rom.c rom.h
 %.list: %.elf
 	$(VERBOSE)$(OBJDUMP) -S $(*).elf > $(*).list
 
-%.elf: $(OBJS) $(LDSCRIPT)
+%.elf: $(OBJS) $(LDSCRIPT) multicart.ld
 	$(LD) -o $(*).elf $(OBJS) $(LDFLAGS)
 	$(PREFIX)-size $(*).elf
 
 %.o: %.c Makefile
 	$(CC) $(CFLAGS) -o $@ -c $<
+
+multicart.bin:
+	make -C ../multicart/ docker-build
+	make -C ../multicart/
+	cp ../multicart/multicart.bin .
+
+multicart.ld: multicart.bin
+	cat $< | hexdump -v -e '"BYTE(0x" 1/1 "%02X" ")\n"' > $@
 
 clean:
 	rm -f $(OBJS)
@@ -132,9 +145,6 @@ clean:
 	rm -f *.srec
 	rm -f *.list
 	rm -rf *.d
-
-#%.flash: %.hex
-#	stm32flash -w "$(*).hex" -b 460800 -i -rts,dtr,-dtr -v -g 0x0 /dev/ttyUSB0
 
 %.flash: %.bin
 	dfu-util -a 0 -d 0483:df11 -s 0x08000000 -D $(*).bin

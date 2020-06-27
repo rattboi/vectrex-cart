@@ -7,3 +7,17 @@ ram (rwx) : ORIGIN = 0x20000400, LENGTH = 127K
 }
 /* Include the common ld script. */
 INCLUDE cortex-m-generic.ld
+
+SECTIONS {
+    .text : {
+
+        /* ... */
+
+        multicart_start = .;
+        INCLUDE "multicart.ld" ;
+        multicart_end = .;
+
+       /* ... */
+    }
+}
+
