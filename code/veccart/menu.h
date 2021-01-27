@@ -3,7 +3,7 @@
 
 #include "fatfs/ff.h"
 
-#define MENU_TEXT_LEN 20
+#define MENU_TEXT_LEN 16
 
 typedef struct {
 	int is_dir;
@@ -15,8 +15,8 @@ typedef struct {
 	file_entry f_entry[80];
 } dir_listing;
 
-int removeExtension(char* filename, char* extension);
-void sortDirectory(char *fdir, dir_listing *listing); 
+int checkExtension(char* filename, const char** extlist, int size, bool modify);
+void sortDirectory(char *fdir, dir_listing *listing);
 void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int strptrs, char *romData); 
 
 #endif

@@ -3,6 +3,11 @@ VEXTREME Vectrex Multicart
 
 We're carrying on and pushing forward the amazing work of [Sprite_tm](http://spritesmods.com/?art=veccart&page=1) and his Extreme Vectrex Multicart. He posted the code (GPLv3 License) and lots of screens of the PCB/initial schematic, but he never released the PCB. It's a great base for an inexpensive and open multicart, for developers and players alike!
 
+:warning: Please read this NOTICE of Current Development :warning:
+===
+
+**This project is a work in progress, and is not ready for mass production.**  Please observe the currently [posted issues](https://github.com/technobly/vextreme/issues) and there may be more lurking that are not yet identified.  The hardware and software is evolving.  You are free to build any version, contribute and/or follow along.  Please note that support of these pre-releases will be very limited and if you embark on an epic adventure to build one or a few, you should feel comfortable with this type of embedded hardware and software development.  There will be road bumps, but the journey is half the fun of the destination.  When things appear to be stable and we've worked out most of the kinks, we'll change the version to v1.0.  Only then is it advisable to mass produce.
+
 3D Renders
 ===
 
@@ -13,15 +18,16 @@ Video Updates
 
 Be sure to subscribe to my Youtube channel for updates!  Here's my [Vectrex playlist](https://www.youtube.com/watch?v=zkJ-z77fJCw&list=PL7MgXfpGKg6CCaIQejZVb5CsTg3-5mHU0&index=1) if you want to stay laser focused on this project.
 
+VEXTREME Discord Server
+===
+Join the [VEXTREME Discord server](https://discord.gg/VDssGVJ) to chat with us about the development
+
 BOM and Parts ordering
 ===
 
 All the parts are described in [veccart.csv](bom/veccart.csv)
 
-Also, you can use this [Digi-Key shared cart](https://www.digikey.com/short/pv2qr0) if you're in a hurry.  It has will have part references right on the packages for you!
-
-:pencil: Note: The USB-C connector I chose is not available at Digi-Key, check Google for "Korean Hroparts Elec TYPE-C-31-M-12".
-
+Also, you can use this [Digi-Key shared cart](https://www.digikey.com/short/zpdmtp) if you're in a hurry.  It has will have part references right on the packages for you!
 
 Ordering PCB's
 ===
@@ -36,8 +42,9 @@ Building and Flashing STM firmware
 ### This assumes you have these prerequisits installed:
 
 - Docker
-- dfu-util
+- dfu-util v0.9
 - Make
+- Windows will also require these [Zadig instructions](https://github.com/profezzorn/ProffieOS/wiki/zadig)
 
 ### Build the stm32-build docker image
 ```
@@ -66,7 +73,9 @@ Found DFU: [0483:df11] ver=2200, devnum=22, cfg=1, intf=0, path="20-1.4.3", alt=
 
 ### Build and flash the STM32 image via dfu-util
 ```
-code/veccart $ make clean all flash
+code/veccart $ make clean all flash USE_HW=v0.3
+
+// NOTE: Use v0.2 above if you have v0.2 HW, or you may use v0.3 if you make the proper mods to your board.  See "Modifying v0.2 to v0.3"
 
 // You should end up with something like this
 
@@ -94,6 +103,7 @@ code/multicart $ make docker-build
   - Name: VEXTREME
   - Format: MS-DOS (FAT)
   - Scheme: Master Boot Record
+  - 512 byte page size
 
 - Be patient, it's slow!  Don't worry, copying binaries later will be fast!!
 
@@ -113,6 +123,16 @@ code/multicart $ make copy
 
 asm6809  -B -o multicart.bin multicart.asm
 ```
+
+Modifying v0.2 to v0.3
+===
+
+![v0.3 Mod 1](images/v0.3-mod1.png)
+
+- To get the new reset feature of v0.3, as of v0.24 software you will need to jumper V-OE pin 12 of the cart fingers (or U3 pin 9) to STM32 pin 29 (PB10).  This may change in the future, don't sell your soldering iron!
+- The wire mod above also allows you to play Animaction on VEXTREME!
+- More TBD
+
 
 Adding Vectrex Game ROMs (Binaries)
 ===

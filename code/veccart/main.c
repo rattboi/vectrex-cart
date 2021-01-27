@@ -1,58 +1,82 @@
-/*
- *  Copyright (C) 2015 Jeroen Domburg <jeroen at spritesmods.com>
- *
- * This library is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this library.  If not, see <http://www.gnu.org/licenses/>.
- */
+/***************************************************************************
+  Copyright (C) 2020 Brett Walach <technobly at gmail.com>
+  --------------------------------------------------------------------------
+  VEXTREME main.c
+
+  The magic starts here!
+
+  Original header follows:
+  --------------------------------------------------------------------------
+  Copyright (C) 2015 Jeroen Domburg <jeroen at spritesmods.com>
+
+  This library is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This library is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with this library.  If not, see <http://www.gnu.org/licenses/>.
+  *************************************************************************/
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/syscfg.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/usart.h>
-#include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/exti.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/pwr.h>
 #include <libopencm3/stm32/flash.h>
+#include <libopencm3/cm3/dwt.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "sys.h"
 #include "led.h"
 #include "delay.h"
 #include "main.h"
 #include "menu.h"
 #include "msc.h"
+#include "highscore.h"
+// #include "flash.h"
 
 //#include "rom.h"
 #include "xprintf.h"
 #include "fatfs/ff.h"
 
+// Externs
+extern GameFileRecord* pActiveGameData;
+extern char multicart_start;
+extern char multicart_end;
 
 //Memory for the menu ROM and the running cartridge.
 //We keep both in memory so we can quickly exchange them when a reset has been detected.
 const int menuIndex = 0xfff; // fixed location in multicart.bin
 char menuData[8*1024];
-char *romData=menuData;
+char devmodeData[2*1024];
+char* romData = menuData;
 unsigned char parmRam[256];
 
 char menuDir[_MAX_LFN + 1];
+static bool isItemAFile = false; // Default to being a directory and not a file
 
 union cart_and_listing {
-	char cartData[64*1024];
 	dir_listing listing;
+	char cartData[64*1024];
 };
 
 union cart_and_listing c_and_l;
+char* cartData = c_and_l.cartData;
+
+system_options sys_opt;
+char* sysData = (char*)&sys_opt;
+uint8_t checkDevMode = 0;
+
+FILINFO cart_file_info;
 
 /*
 //Pinning:
@@ -66,6 +90,8 @@ USBPWR - PA9
 
 #define SYSCFG_MEMRMP			MMIO32(SYSCFG_BASE + 0x00)
 
+// Local functions
+static void doStartRom(void);
 
 void uart_output_func(unsigned char c){
 	uint32_t reg;
@@ -75,32 +101,117 @@ void uart_output_func(unsigned char c){
 	USART_DR(USART1) = (uint16_t) c & 0xff;
 }
 
-//Asm function
+// Asm function
 extern void romemu(void);
 
-//Load a ROM into cartridge memory
+// Load a ROM into cartridge memory
+void loadMenu() {
+  bool use_embedded_menu = (f_stat("/multicart.bin", &cart_file_info) != FR_OK);
+
+  loadRomWithHighScore("/multicart.bin", false, use_embedded_menu);
+}
+
 void loadRom(char *fn) {
+	loadRomWithHighScore(fn, false, false); // by default, do not load high score mode
+}
+
+void loadRomWithHighScore(char *fn, bool load_hs_mode, bool use_embedded_menu) {
 	FIL f;
-	FRESULT fr;
-	UINT r=0;
+	FRESULT fr = FR_NO_FILE; // assume no file, so we can test if we ever opened the file later
+	UINT r = 0;
 	int n;
-	if (romData==c_and_l.cartData)
-		n=sizeof(c_and_l.cartData);
-	else
-		n=sizeof(menuData);
-	fr=f_open(&f, fn, FA_READ);
-	if (fr) {
-		xprintf("Error opening file: %d\n", fr);
+	UINT x;
+	if (romData == c_and_l.cartData) {
+		// loaded cart data
+		n = sizeof(c_and_l.cartData);
 	} else {
-		xprintf("Opened file: %s\n", fn);
+		// loaded menu data
+		n = sizeof(menuData);
 	}
-	f_read(&f, romData, 64*1024, &r);
-	if (n>32*1024 && r<=32*1024) {
+	if (romData == menuData && use_embedded_menu == true) {
+		xprintf("Copying %lu bytes of menu data... ", &multicart_end - &multicart_start);
+		memcpy(menuData, &multicart_start, &multicart_end - &multicart_start);
+		xprintf("OK!\n");
+	} else {
+		fr = f_open(&f, fn, FA_READ);
+		if (fr) {
+			xprintf("Error opening file: %d\n", fr);
+		} else {
+			xprintf("Opened file: %s\n", fn);
+		}
+		f_read(&f, romData, 64*1024, &r);
+		xprintf("Read %d bytes of rom data.\n", r);
+	}
+	// It's a game and it's <= 32KB
+	if (n > 32*1024 && r <= 32*1024) {
+		// pad with 0x01 for Mine Storm II and Polar Rescue (and any
+		// other buggy game that reads outside its program space)
+		for (x = r; x < 32*1024; x++) {
+			romData[x] = 0x01;
+		}
+		xprintf("Padded remaining %d bytes of rom data with 0x01\n", x - r);
 		//Duplicate bank to upper bank
-		for (n=0; n<32*1024; n++) romData[n+32*1024]=romData[n];
+		for (n = 0; n < 32*1024; n++) {
+			romData[n+32*1024] = romData[n];
+		}
+
+		if (load_hs_mode) {
+			// Search for game in highscore file and if it exists read it into
+			// the active game high score record.  If the game doesn't exist,
+			// then setup record to default values for high score and add the name.
+			// A NULL as the second param will use the default active pointer.
+			HighScoreRetVal hs_ret_val = highScoreGet((const unsigned char *)&romData[0x11], NULL);
+			if (hs_ret_val != HIGH_SCORE_SUCCESS) {
+				xprintf("highScoreGet failure: %d, creating default high score for: %s\n", hs_ret_val, fn);
+				// Set the active game record to defaults and change name to the current
+				// game we are loading. This will prepare it to be stored once we
+				// acquire a new high score from the game ROM running.
+				hs_ret_val = highScoreSetGameRecordToDefaults((const unsigned char *)&romData[0x11], NULL);
+				if (hs_ret_val != HIGH_SCORE_SUCCESS) {
+					xprintf("highScoreSetGameRecordToDefaults failure: %d\n", hs_ret_val);
+				}
+			} else {
+				xprintf("highScoreGet success\n");
+			}
+
+			// Store high score towards the end of the menu data
+			menuData[0x0ff0] = pActiveGameData->maxScore[0];
+			menuData[0x0ff1] = pActiveGameData->maxScore[1];
+			menuData[0x0ff2] = pActiveGameData->maxScore[2];
+			menuData[0x0ff3] = pActiveGameData->maxScore[3];
+			menuData[0x0ff4] = pActiveGameData->maxScore[4];
+			menuData[0x0ff5] = pActiveGameData->maxScore[5];
+			menuData[0x0ff6] = 0x80;
+			parmRam[0xe0] = 0x77; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
+
+			// Don't start game yet, stay in menu so that the VEXTREME menu
+			// can read and store the high score
+			romData = menuData;
+		} // end if (load_hs_mode)
 	}
-	xprintf("Read %d bytes of rom data.\n", r);
-	f_close(&f);
+	// It's the menu, patch in the HW/SW versions
+	else if (romData == menuData) {
+		char* ptr1 = strstr(menuData, "11");
+		char* ptr2 = strstr(menuData, "22");
+		char* ptr3 = strstr(menuData, "33");
+		char* ptr4 = strstr(menuData, "44");
+		if (ptr1 && ptr2 && ptr3 && ptr4) {
+			*ptr1++ = 'V';
+			*ptr1   = '0' + (sys_opt.hw_ver >> 8) % 10;
+			*ptr2++ = '0' + (sys_opt.hw_ver & 0xFF) / 10;
+			*ptr2   = '0' + (sys_opt.hw_ver & 0xFF) % 10;
+			*ptr3++ = 'V';
+			*ptr3   = '0' + (sys_opt.sw_ver >> 8) % 10;
+			*ptr4++ = '0' + (sys_opt.sw_ver & 0xFF) / 10;
+			*ptr4   = '0' + (sys_opt.sw_ver & 0xFF) % 10;
+		}
+		if (load_hs_mode) {
+			parmRam[0xe0] = 0x66; // High Score flag (IDLE:0x66, LOAD2VEC:0x77, SAVE2STM:0x88)
+		}
+	}
+	if (fr != FR_NO_FILE) {
+		f_close(&f);
+	}
 }
 
 //Stream data, for the Bad Apple demo
@@ -121,8 +232,9 @@ void loadStreamData(int addr, int len) {
 }
 
 void doUpDir() {
-  if (strcmp(menuDir, "/roms") != 0)
-    doChangeDir("..");
+	if (strcmp(menuDir, "/roms") != 0) {
+		doChangeDir("..");
+	}
 }
 
 void doChangeDir(char* dirname) {
@@ -143,7 +255,10 @@ void doChangeDir(char* dirname) {
 	xprintf("Done listing for : %s\n", menuDir);
 }
 
-//User has made a selection in the cart menu (chose the i'th item) so now we have to load the cartridge.
+/**
+ * User has made a selection in the cart menu (chose the i'th item)
+ * so now we have to load the ROM or Directory
+ */
 void doChangeRom(char* basedir, int i) {
 	char buff[300];
 
@@ -153,51 +268,313 @@ void doChangeRom(char* basedir, int i) {
 	file_entry f = c_and_l.listing.f_entry[i];
 
 	if (f.is_dir) {
+		isItemAFile = false;
 		doChangeDir(f.fname);
-	} else {													/* It is a file. */
+	} else {
+		isItemAFile = true;
 		xprintf("Adding filename [%s] to path\n", f.fname);
 		xsprintf(buff, "%s/%s", basedir, f.fname);
 
 		romData=c_and_l.cartData;
 		xprintf("Going to read rom image %s\n", buff);
-		loadRom(buff);
+		loadRomWithHighScore(buff, true, false);
 	}
 }
 
-//Handle an RPC event
+/**
+ * Point romData to the cartData or menuData based on what was last loaded
+ * in doChangeRom() and return.
+ */
+static void doStartRom(void) {
+	if (isItemAFile == true) {
+		romData = c_and_l.cartData;
+	} else {
+		romData = menuData;
+	}
+}
+
+void updateAll() {
+	uint16_t i = ledsNumPixels();
+	while (i > 0) {                     // color index
+		ledsSetPixelColor(--i, colors[(int)parmRam[254]]);
+	}
+	ledsUpdate();
+}
+
+void updateOne() {
+	//                led index        , color index
+	ledsSetPixelColor((int)parmRam[253], colors[(int)parmRam[254]]);
+	ledsUpdate();
+}
+
+void updateMulti() {
+	// uint16_t i = ledsNumPixels();
+	for (uint16_t i = 0; i < ledsNumPixels(); i++) {
+		// xprintf("LED%d = %d\n", i, (int)parmRam[0xf0 + i]);
+		ledsSetPixelColor(i, colors[(int)parmRam[0xf0 + i]]); // 0xf0 = LED0, 0xf9 = LED9
+	}
+	// xprintf("\n");
+	ledsUpdate();
+}
+
+void doLedOn(int on) {
+	if (on) {
+		gpio_set(GPIOB, GPIO0);
+	} else {
+		gpio_clear(GPIOB, GPIO0);
+	}
+}
+
+// This function to be used by games (cartData)
+// Load HW/SW versions so that the menu can access and display them
+// Warning: This permanently alters the last 4 bytes of 32K ROM game data!
+void loadVersions() {
+	c_and_l.cartData[0x7ffc] = sys_opt.hw_ver >> 8;
+	c_and_l.cartData[0x7ffd] = sys_opt.hw_ver & 0xFF;
+	c_and_l.cartData[0x7ffe] = sys_opt.sw_ver >> 8;
+	c_and_l.cartData[0x7fff] = sys_opt.sw_ver & 0xFF;
+}
+
+// This function to be used by the Menu (multcart.asm)
+// Load sys_opt data starting at address specified, up to 15 bytes specified by size.
+// addr = $7ffd
+// size = $7ffe
+// data returned in $ff0 ~ $ff0+size
+void loadSysOpt() {
+	int addr = (int)parmRam[0xfd];
+	int size = (int)parmRam[0xfe];
+	if (size > 15) size = 15; // limited to 15 for now
+	for (int i = 0; i < size; i++) {
+		menuData[0xff0 + i] = sysData[addr + i];
+		// xprintf("sysData[%x]=%u,checkDevMode=%d\n", addr + i, sysData[addr + i], checkDevMode);
+	}
+}
+
+// This function to be used by the Menu (multcart.asm)
+// Load parmRam data starting at address specified, up to 15 bytes specified by size.
+// addr = $7ffd
+// size = $7ffe
+// data returned in $fe0 ~ $fe0+size
+void loadParmRam() {
+	int addr = (int)parmRam[0xfd];
+	int size = (int)parmRam[0xfe];
+	if (size > 16) size = 16; // limited to 15 for now
+	for (int i = 0; i < size; i++) {
+		menuData[0xfe0 + i] = parmRam[addr + i];
+		// xprintf("parmRam[%x]=%u\n", addr + i, sysData[addr + i]);
+	}
+}
+
+// This function to be used by games (cartData)
+// Dump the data in hex bytes from starting address to ending address specified
+// $7ff0 - Start Address High Byte
+// $7ff1 - Start Address Low  Byte
+// $7ff2 -   End Address High Byte
+// $7ff3 -   End Address Low  Byte
+// data output on TX pin in table format, use with RAM WRITE app for debugging
+void dumpMemory() {
+	// int start_addr = 0x1fe0; // hard code if desired
+	// int end_addr = 0x281f;   // hard code if desired
+	int start_addr = ((int)parmRam[0xf0] << 8) + (int)parmRam[0xf1];
+	int end_addr = ((int)parmRam[0xf2] << 8) + (int)parmRam[0xf3];
+	int current_addr = start_addr;
+	xprintf("ADDR | 0001 0203 0405 0607 0809 0A0B 0C0D 0E0F 1011 1213 1415 1617 1819 1A1B 1C1D 1E1F\n");
+	xprintf("==== | ===============================================================================\n");
+	while ( current_addr <= end_addr ) {
+		xprintf("%04x | ", current_addr);
+		for (int byte = 0; byte < 32; byte++) {
+			if (current_addr + byte > end_addr) break;
+			xprintf("%02x", cartData[current_addr + byte]);
+			if (((byte+1) % 2) == 0 && byte != 31) {
+				xprintf(" ");
+			}
+		}
+		xprintf("\n");
+		current_addr += 32;
+	}
+}
+
+void loadApp() {
+	switch((int)parmRam[0xfe]) {
+		case 0:
+			romData = c_and_l.cartData;
+			xprintf("Launching /devmode.bin\n");
+			loadRom("/devmode.bin");
+			break;
+		default:
+			break;
+	}
+}
+
+void ledsCyan() {
+	uint16_t i = ledsNumPixels();
+	while (i > 0) {
+		ledsSetPixelColor(--i, colors[5]);
+	}
+	ledsUpdate();
+}
+
+void ledsMagenta() {
+	uint16_t i = ledsNumPixels();
+	while (i > 0) {
+		ledsSetPixelColor(--i, colors[8]);
+	}
+	ledsUpdate();
+}
+
+void ledsOff() {
+	ledsClear();
+	ledsUpdate();
+}
+
+static FATFS FatFs;
+FIL cart_file;
+void doRamDisk() {
+	/**
+	 * Normally address 0,1 is 'g',' ' which is the game 'copyright' and 'space'.
+	 * We want to let the Vectrex know it's time to make one RPCFN call when 0,1 == 'v','x'
+	 * and make sure we put it back to 'g',' ' in case the Vectrex gets reset.
+	 * FIXME: change the place where this is done
+	 * The vectrex should also make sure it only makes one call to RPCFN 10 for each
+	 * operation required (START DEV MODE, EXIT DEV MODE, RUN CART.BIN).
+	 */
+	menuData[0xffc] = 0x01; // make sure we are blocking the RPCFN yield bytes again
+	menuData[0xffd] = 0x01; // This will get overwritten when the cart.bin or menu loads
+	menuData[0x0] = 0x01;   // |
+	menuData[0x1] = 0x01;   // |
+
+	switch ((int)parmRam[254]) {
+		case 0: /*xprintf("WAIT DEV\n");*/ sys_opt.usb_dev = USB_DEV_WAIT; break;
+		case 1: xprintf("EXIT DEV\n"); sys_opt.usb_dev = USB_DEV_EXIT; break;
+		case 4: xprintf("RUN DEV\n"); sys_opt.usb_dev = USB_DEV_RUN; break;
+		case 5:
+			if (gpio_get(GPIOA, GPIO9)) {
+				menuData[0xffb] = 0x99; // HIGH:0x99
+			} else {
+				menuData[0xffb] = 0x66; // LOW:0x66
+			}
+			// xprintf("VUSB: %x\n", menuData[0xffb]);
+			sys_opt.usb_dev = USB_DEV_CHECK;
+			break;
+		default: xprintf("UNKNOWN DEV\n"); sys_opt.usb_dev = USB_DEV_DISABLED; return; break;
+	}
+
+	// attempt to close this if it's open, don't worry this is safe
+	// FRESULT f_close_res;
+	f_close(&cart_file);
+	// xprintf("f_close result: %d\n", f_close_res);
+
+	int ramdisk_ret = 0;
+	if (sys_opt.usb_dev != USB_DEV_DISABLED && sys_opt.usb_dev != USB_DEV_CHECK) {
+		ramdisk_ret = ramdiskmain(RAMDISK_NON_BLOCKING);
+	}
+	if (ramdisk_ret == 0 &&
+		(sys_opt.usb_dev == USB_DEV_WAIT ||
+		 sys_opt.usb_dev == USB_DEV_DISABLED ||
+		 sys_opt.usb_dev == USB_DEV_CHECK)) {
+		menuData[0xffc] = 'v'; // tell the Vectrex time to make one RPCFN call (wait/exit/run)
+		menuData[0xffd] = 'x';
+		return;
+	} else {
+		// handle errors, if we add some in ramdiskmain()
+	}
+
+	// remount the file system to pick up any changes
+	// FRESULT f_mount_res;
+	f_mount(&FatFs, "", 0);
+	// xprintf("f_mount result: %d\n", f_mount_res);
+
+	if (sys_opt.usb_dev == USB_DEV_RUN || sys_opt.usb_dev == USB_DEV_EJECT) {
+		if (sys_opt.usb_dev == USB_DEV_RUN) xprintf("Vectrex asked to run\n");
+		else if (sys_opt.usb_dev == USB_DEV_EJECT) xprintf("USB host ejected device\n");
+		if (f_stat("/cart.bin", &cart_file_info) == FR_OK) {
+			xprintf("Loading /cart.bin ...\n");
+			if (f_open(&cart_file, "/cart.bin", FA_READ) == FR_OK) {
+				romData=c_and_l.cartData; // Explicitly setting this here so we know WTF is going on in the background
+				loadRom("/cart.bin");
+				sys_opt.usb_dev = USB_DEV_RUN;
+			}
+		} else {
+			xprintf("Sorry, didn't find /cart.bin\n");
+			sys_opt.usb_dev = USB_DEV_DISABLED;
+
+			(void) highScoreOpenFile(); // Create/Open highscore file
+			romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
+			loadMenu();
+			loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
+		}
+	} else if (sys_opt.usb_dev == USB_DEV_EXIT) {
+		xprintf("Exiting Developer mode\n");
+		if (f_stat("/cart.bin", &cart_file_info) == FR_OK) {
+			xprintf("Deleting /cart.bin ...\n");
+			// FRESULT f_unlink_res;
+			f_unlink("/cart.bin");
+			// xprintf("f_unlink result: %d\n", f_unlink_res);
+		}
+
+		(void) highScoreOpenFile(); // Create/Open highscore file
+		sys_opt.usb_dev = USB_DEV_DISABLED;
+		romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
+		loadMenu();
+		loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
+	}
+
+	menuData[0] = 'g';   // Fixup the copyright bytes now that we are exiting
+	menuData[1] = ' ';   // |
+}
+
+// Handle an RPC event
 void doHandleEvent(int data) {
-	// xprintf("Event: %d. arg1: 0x%x\n", data, (int)parmRam[254]);
-	if (data==1) doChangeRom(menuDir, (int)parmRam[254]);
-	if (data==2) loadStreamData(0x4000, 1024+512);
-	if (data==3) doUpDir();
-	// xprintf("Event handled. Resuming.\n");
+	// xprintf("[E:%d,A:%02X]\n", data, (int)parmRam[254]);
+	switch (data) {
+		default:
+		case 0: break;
+		case 1: doChangeRom(menuDir, (int)parmRam[254]); break; // Starts changing ROM
+		case 2: loadStreamData(0x4000, 1024+512); break;
+		case 3: doUpDir(); break;
+		case 4: updateAll(); break;
+		case 5: rainbowStep((int)parmRam[254]); break;
+		case 6: updateOne(); break;
+		case 7: updateMulti(); break;
+		case 8: ledsSetBrightness((int)parmRam[254]); break;
+		case 9: loadVersions(); break;
+		case 10: doRamDisk(); break;
+		case 11: loadApp(); break;
+		case 12: loadSysOpt(); break;
+		case 13: dumpMemory(); break;
+		case 14: highScoreSave(&parmRam[0]); break;
+		case 15: doStartRom(); break; // Finishes changing ROM
+		case 16: loadParmRam(); break;
+	}
 }
 
 void doDbgHook(int adr, int data) {
 	xprintf("R %x %x\n", adr, data);
 }
 
-static FATFS FatFs;
+void doLog(int data) {
+	xprintf("%x\n", data);
+}
 
 int main(void) {
 	void (*runptr)(void)=romemu;
 
-  const struct rcc_clock_scale hse_8mhz_3v3_120MHz = { /* 120MHz */
-     .pllm = 8,
-     .plln = 240,
-     .pllp = 2,
-     .pllq = 5,
-     .pllr = 0,
-     .pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
-     .hpre = RCC_CFGR_HPRE_DIV_NONE,
-     .ppre1 = RCC_CFGR_PPRE_DIV_4,
-     .ppre2 = RCC_CFGR_PPRE_DIV_2,
-     .voltage_scale = PWR_SCALE1,
-     .flash_config = FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_LATENCY_3WS,
-     .ahb_frequency  = 120000000,
-     .apb1_frequency = 30000000,
-     .apb2_frequency = 60000000,
-  };
+	const struct rcc_clock_scale hse_8mhz_3v3_120MHz = { /* 120MHz */
+		.pllm = 8,
+		.plln = 240,
+		.pllp = 2,
+		.pllq = 5,
+		.pllr = 0,
+		.pll_source = RCC_CFGR_PLLSRC_HSE_CLK,
+		.hpre = RCC_CFGR_HPRE_DIV_NONE,
+		.ppre1 = RCC_CFGR_PPRE_DIV_4,
+		.ppre2 = RCC_CFGR_PPRE_DIV_2,
+		.voltage_scale = PWR_SCALE1,
+		.flash_config = FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_LATENCY_3WS,
+		.ahb_frequency  = 120000000,
+		.apb1_frequency = 30000000,
+		.apb2_frequency = 60000000,
+	};
 
 	rcc_clock_setup_pll(&hse_8mhz_3v3_120MHz);
 	rcc_periph_clock_enable(RCC_GPIOA);
@@ -244,33 +621,58 @@ int main(void) {
 	gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE,
 		GPIO1|GPIO15);
 
-	// SysTick setup (calls sys_tick_handler() every 1ms), also required for delay/millis
-	systick_set_reload(120000);
-	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
-	systick_counter_enable();
-	systick_interrupt_enable();
+	// dwt_enable_cycle_counter required for delay/millis
+	// used instead of systick_handler to prevent interrupts from disrupting romemu.S loop
+	dwt_enable_cycle_counter();
 
-	xprintf("Inited.\n");
+#if HW_VER == 255
+	#error "USE_HW hardware version not specified, please specify e.g. USE_HW=v0.2 or USE_HW=v0.3"
+#endif
 
-	// Test Addressable LEDs
-	// Addressable RGB LEDs
-	uint32_t colors[] = {
-		0,		  // off
-		0xFF0000, // red
-		0xFF9900, // orange
-		0xFFFF00, // yellow
-		0x00FF00, // green
-		0x00FFFF, // cyan
-		0x0000FF, // blue
-		0x7700FF, // pink
-		0xFF00FF, // magenta
-		0xFFFFFF  // white
-	};
-	ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
-	ledsSetBrightness(150); // be careful not to set this too high when using white, those LEDs draw some power!!
-	uint32_t start = millis();
-	while (millis() - start <= 2000UL) {
-		rainbowCycle(10);
+	// TODO: load new options from VEXTREME/options.txt in key=val format
+	sys_opt.size = sizeof(sys_opt);
+	sys_opt.ver = 1;
+// #if (HW_VER == 1)
+// 	sys_opt.hw_ver = 0x000A; // v0.10
+// #elif (HW_VER == 2)
+// 	sys_opt.hw_ver = 0x0014; // v0.20
+// #elif (HW_VER == 3)
+// 	sys_opt.hw_ver = 0x001e; // v0.30
+// #endif
+	// For now, this is hard coded to determine LED operation, nothing more.
+	// TODO: uncomment above for system hw_ver, and add .led_hw_ver for LED initialization.
+	sys_opt.hw_ver = 0x0014; // v0.20
+	sys_opt.sw_ver = 0x0018; // v0.24
+	sys_opt.rgb_type = RGB_TYPE_10;
+	sys_opt.usb_dev = USB_DEV_DISABLED;
+
+	xprintf("\n");
+	xprintf("[ VEXTREME booted ]\n");
+	xprintf("  HW v%01d.%02d | SW v%01d.%02d\n", sys_opt.hw_ver >> 8, sys_opt.hw_ver & 0xFF, sys_opt.sw_ver >> 8, sys_opt.sw_ver & 0xFF);
+	xprintf("  LED TYPE: ");
+	// HW version < 0.30
+	if (sys_opt.hw_ver < 0x001e) {
+		// xprintf("HW VER < 0.30\n");
+		if (sys_opt.rgb_type == RGB_TYPE_10) {
+			xprintf("RGB_TYPE_10\n");
+			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+			ledsSetBrightness(50); // be careful not to set this too high when using white, those LEDs draw some power!!
+		} else if (sys_opt.rgb_type == RGB_TYPE_4) {
+			xprintf("RGB_TYPE_4\n");
+			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+			ledsSetBrightness(255); // we will be limiting to 4, it's ok to crank them all of the way up!
+		} else if (sys_opt.rgb_type == RGB_TYPE_NONE) {
+			xprintf("RGB_TYPE_NONE\n");
+			ledsInitSW(10, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+			ledsSetBrightness(0); // sleeper cart, you'll never see it coming _._
+		}
+	}
+	// HW version >= 0.30
+	else if (sys_opt.hw_ver >= 0x001e) { // >= 0.30
+		// xprintf("HW VER >= 0.30\n");
+		xprintf("type ignored, we only have 4!\n");
+		ledsInitSW(4, GPIOB, GPIO14, GPIOB, GPIO13, RGB_BGR);
+		ledsSetBrightness(255); // we will be limiting to 4, it's ok to crank them all of the way up!
 	}
 
 #if 0 // TEST LED CODE START
@@ -290,17 +692,17 @@ int main(void) {
 		rainbowCycle(10);
 
 		ledsClear();
-		knightRider(6, 64, 4, 2, 8, 0xFF7700); // Cycles, Speed, Width, First, Last, RGB Color (original orange-red)
-		knightRider(3, 32, 4, 2, 8, 0xFF00FF); // Cycles, Speed, Width, First, Last, RGB Color (purple)
-		knightRider(3, 32, 4, 2, 8, 0x0000FF); // Cycles, Speed, Width, First, Last, RGB Color (blue)
-		knightRider(3, 32, 5, 2, 8, 0x00FF00); // Cycles, Speed, Width, First, Last, RGB Color (green)
-		knightRider(3, 32, 5, 2, 8, 0xFFFF00); // Cycles, Speed, Width, First, Last, RGB Color (yellow)
-		knightRider(3, 32, 7, 2, 8, 0x00FFFF); // Cycles, Speed, Width, First, Last, RGB Color (cyan)
-		knightRider(3, 32, 7, 2, 8, 0xFFFFFF); // Cycles, Speed, Width, First, Last, RGB Color (white)
+		knightRider(6, 64, 4, 3, 9, 0xFF7700); // Cycles, Speed, Width, First, Last, RGB Color (original orange-red)
+		knightRider(3, 32, 4, 3, 9, 0xFF00FF); // Cycles, Speed, Width, First, Last, RGB Color (purple)
+		knightRider(3, 32, 4, 3, 9, 0x0000FF); // Cycles, Speed, Width, First, Last, RGB Color (blue)
+		knightRider(3, 32, 5, 3, 9, 0x00FF00); // Cycles, Speed, Width, First, Last, RGB Color (green)
+		knightRider(3, 32, 5, 3, 9, 0xFFFF00); // Cycles, Speed, Width, First, Last, RGB Color (yellow)
+		knightRider(3, 32, 7, 3, 9, 0x00FFFF); // Cycles, Speed, Width, First, Last, RGB Color (cyan)
+		knightRider(3, 32, 7, 3, 9, 0xFFFFFF); // Cycles, Speed, Width, First, Last, RGB Color (white)
 
 		// Iterate through a whole rainbow of colors
 		for(uint8_t j=0; j<252; j+=7) {
-			knightRider(1, 16, 2, 0, 8, colorWheel(j)); // Cycles, Speed, Width, RGB Color
+			knightRider(1, 16, 2, 0, 10, colorWheel(j)); // Cycles, Speed, Width, RGB Color
 		}
 
 		ledsClear();
@@ -313,26 +715,49 @@ int main(void) {
 	}
 #endif // TEST LED CODE END
 
-	//If USB power pin is high, boot into USB disk mode
+	// If USB power pin is high, boot into USB disk mode
 	if (gpio_get(GPIOA, GPIO9)) {
-		xprintf("USB dev mode.\n");
-		ramdiskmain();
-	} else {
-		// disable this or it will delay our ROM emulation!
-		systick_interrupt_disable();
-
-		//Load the menu game
-		strncpy(menuDir, "/roms", sizeof(menuDir));
-		f_mount(&FatFs, "", 0);
-		loadRom("/multicart.bin");
-		loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
-
-		//Go emulate a ROM.
-		SYSCFG_MEMRMP=0x3; //mak ram at 0
-		runptr=(char*)(((int)runptr&0x1ffff)|1); //map to lower mem
-		xprintf("Gonna start romemu at %08x\n", romemu);
-		runptr();
+		xprintf("[ Starting RAMDISK ]\n");
+		ramdiskmain(RAMDISK_BLOCKING);
 	}
+
+	// Give the cart some color, but after the USB process so we don't load down weak USB sources
+	rainbowStep(4);
+
+	xprintf("[ Starting ROM Emulation ]\n");
+	// Load the menu game
+	strncpy(menuDir, "/roms", sizeof(menuDir));
+
+	// FRESULT f_mount_res;
+	f_mount(&FatFs, "", 0);
+	// xprintf("f_mount result: %d\n", f_mount_res);
+
+	// Create/Open highscore file
+	// Ignore return value for now
+	(void) highScoreOpenFile();
+
+	// Load the Menu
+	romData=menuData; // Explicitly setting this here so we know WTF is going on in the background
+	loadMenu();
+	loadListing(menuDir, &c_and_l.listing, menuIndex+1 , menuIndex+1+0x200, romData);
+	sys_opt.usb_dev = USB_DEV_DISABLED;
+
+	// Load cart.bin and jump straight into Developer Mode if it exists
+	if (f_stat("/cart.bin", &cart_file_info) == FR_OK) {
+		xprintf("Loading /cart.bin ...\n");
+		if (f_open(&cart_file, "/cart.bin", FA_READ) == FR_OK) {
+			romData=c_and_l.cartData; // Explicitly setting this here so we know WTF is going on in the background
+			loadRom("/cart.bin");
+			sys_opt.usb_dev = USB_DEV_RUN;
+			checkDevMode = 0;
+		}
+	}
+
+	// Go emulate a ROM.
+	SYSCFG_MEMRMP=0x3; //mak ram at 0
+	runptr=(void*)(((int)runptr&0x1ffff)|1); //map to lower mem
+	xprintf("Gonna start romemu at %08x\n", romemu);
+	runptr();
 
 	return 0;
 }

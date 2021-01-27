@@ -35,24 +35,26 @@ static int flashBlkAddr=-1;
 // DO -  56 - PB4  - SPI1_MISO
 // CLK - 55 - PB3  - SPI1_SCK
 // DI -  57 - PB5  - SPI1_MOSI
-//This flash has 4K sectors, divided in 256-byte pages.
-//This means that if we write a (512-byte) sector, we need to
-//read the 4k sector, erase it, modify the 512 bytes in the RAM
-//buffer, then write the buffer back to the recently-erased sector.
+// This flash has 4K sectors, divided in 256-byte pages.
+// This means that if we write a (512-byte) sector, we need to
+// read the 4k sector, erase it, modify the 512 bytes in the RAM
+// buffer, then write the buffer back to the recently-erased sector.
 
-//We actually do some caching here: as soon as the first 512-byte sector
-//of a 4K page is written, we read the 4K sector into RAM and modify the RAM
-//buffer to reflect the 512byte write. We don't write it back yet, there may 
-//be more writes incoming. If they do, we again modify the in-memory page. If
-//there's a write to a different page or if 1.5 seconds have passed, we
-//write back the in-RAM page.
+// We actually do some caching here: as soon as the first 512-byte sector
+// of a 4K page is written, we read the 4K sector into RAM and modify the RAM
+// buffer to reflect the 512byte write. We don't write it back yet, there may
+// be more writes incoming. If they do, we again modify the in-memory page. If
+// there's a write to a different page or if 300ms seconds have passed, we
+// write back the in-RAM page.
 
-//To be called every 10th of a second
+// To be called every 50th of a second
 void flashTick() {
 	flashBlkAge++;
 	if (flashBlkAddr!=-1 && flashBlkAge>15) {
-		xprintf("Auto writeback after timeout\n");
 		flashDoWriteback();
+		xprintf("Auto writeback after timeout\n");
+
+		// We arrive here after each file copied to the cart or when the mounted drive is ejected.
 	}
 }
 
@@ -60,7 +62,8 @@ static void flashCs(int i) {
 	if (i) gpio_set(GPIOA, GPIO15); else gpio_clear(GPIOA, GPIO15);
 }
 
-static void flashEraseChip() {
+__attribute__((unused))
+static void flashEraseChip(void) {
 	int status;
 	xprintf("Erasing chip...\n");
 	//Send write enable
@@ -84,6 +87,12 @@ static void flashEraseChip() {
 }
 
 void flashInit(void) {
+	static bool flash_init = false; // only allow flash to be initialized once
+	if (flash_init) {
+		return;
+	}
+	flash_init = true;
+
 	int id, mf;
 	gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO15);
 	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE,
@@ -206,7 +215,7 @@ int flashWriteBlk(uint32_t lba, const uint8_t *copy_from) {
 
 //	xprintf("Write lba %d (addr %x blkaddr %x)\n", lba, addr, blkaddr);
 
-	if (blkaddr!=flashBlkAddr) {
+	if (blkaddr != (uint32_t)flashBlkAddr) {
 		//Write back data in block cache, if any
 		flashDoWriteback();
 		gpio_set(GPIOB, GPIO0); //turn on LED

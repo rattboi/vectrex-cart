@@ -1,4 +1,6 @@
+#define _GNU_SOURCE // required for strcasestr
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "menu.h"
@@ -9,7 +11,7 @@
 //Get a listing of the roms in the 'roms/' directory and
 //poke them into the menu cartridge space
 void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int strptrs, char *romData) {
-	char buff[30];
+	char buff[sizeof(listing->f_entry->fname)];
 	char *name;
 
 	int ptrpos = fnptrs;  // fixed location in multicart.bin for 512 filename pointers (from &ptrpos ~ &strpos)
@@ -25,20 +27,22 @@ void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int s
 	for (idx = 0; idx < listing->num_files; idx++) {
 		f_entry=&(listing->f_entry[idx]);
 
-		strncpy(buff, f_entry->fname, sizeof(buff));
+		strncpy(buff, f_entry->fname, sizeof(buff)-1);
+		buff[sizeof(buff)-1] = '\0';
 		name=buff;
 
 		is_dir=f_entry->is_dir;
 
-		//xprintf("Found file %s (%d), file %d\n", name, is_dir, idx);
+		// xprintf("Found file %s (%d), file %d\n", name, is_dir, idx);
 		romData[ptrpos++]=strpos>>8;
 		romData[ptrpos++]=strpos&0xff;
 
 		// remove extensions
-		removeExtension(name, ".bin");
-		removeExtension(name, ".BIN");
-		removeExtension(name, ".vec");
-		removeExtension(name, ".VEC");
+		const char* extList[2] = { ".bin", ".vec" };
+		int is_game = checkExtension(name, extList, 2, true); // check and modify
+		if (!is_game && !is_dir) {
+			continue; // If not a game, don't list it in the menu
+		}
 
 		i = is_dir ? (MENU_TEXT_LEN-2) : MENU_TEXT_LEN;
 		if (is_dir) romData[strpos++]='<';
@@ -64,11 +68,15 @@ void loadListing(char *fdir, dir_listing *listing, const int fnptrs, const int s
 	xprintf("Done.\n");
 }
 
-int removeExtension(char* filename, char* extension) {
-	char* ptr = strstr(filename,extension);
-	if (ptr) {
-		*ptr = 0;
-		return 1;
+int checkExtension(char* filename, const char** extlist, int size, bool modify) {
+	for (int i = 0; i < size; i++ ) {
+		char* ptr = strcasestr(filename, extlist[i]);
+		if (ptr) {
+			if (modify) {
+				*ptr = 0;
+			}
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -117,10 +125,20 @@ void sortDirectory(char *fdir, dir_listing *listing) {
 		}
 
 		is_dir = (fi.fattrib & AM_DIR) ? 1 : 0;
+
+
 		if (fi.lfname[0]=='.') continue; // ignore MacOS dotfiles
 		name=fi.lfname;
 		if (name==NULL || name[0]==0) name=fi.fname; //use short name if no long name available
 
+		// check extensions and ignore all non case insensitive .bin/.vec files
+		const char* extList[2] = { ".bin", ".vec" };
+		int is_game = checkExtension(name, extList, 2, false); // check only
+		if (!is_game && !is_dir) {
+			continue; // If not a game or directory, don't list it in the menu
+		}
+
+		// add file/dir to listing
 		f_entry->is_dir = is_dir;
 		strcpy(f_entry->fname, name);
 		idx++;
